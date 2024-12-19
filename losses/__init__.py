@@ -42,22 +42,27 @@ class WassersteinLoss(torch.nn.Module):
 
 
 class PerceptualLoss(torch.nn.Module):
-    def __init__(self, features_dict: Optional[Dict[str, str]] = None, content_dict: Optional[Dict[str, str]] = None,
+    def __init__(self, discriminator_network: torch.nn.Module = None, features_dict: Optional[Dict[str, str]] = None, content_dict: Optional[Dict[str, str]] = None,
                  return_one: bool = True, style_factor: float = 1.0,
                  content_factor: float = 1.0, needs_norm: bool = True):
         super().__init__()
-        self.model = torchvision.models.vgg16(torchvision.models.VGG16_Weights.DEFAULT).features.eval()
+        
+        self.model = torchvision.models.vgg16(torchvision.models.VGG16_Weights.DEFAULT).features.eval()\
+            if discriminator_network is None else discriminator_network
 
         if features_dict is None:
             self.return_features = features_dict
         else:
             self.return_features = {
-
+                "3": "first",
+                "8": "second",
+                "15": "third",
+                "22": "fourth"
             }
 
         if content_dict is None:
             self.return_content = {
-
+                "15": "first"
             }
         else:
             self.return_content = content_dict
