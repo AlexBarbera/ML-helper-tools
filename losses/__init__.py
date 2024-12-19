@@ -42,23 +42,41 @@ class WassersteinLoss(torch.nn.Module):
 
 
 class PerceptualLoss(torch.nn.Module):
-    def __init__(self, discriminator_network: torch.nn.Module = None, features_dict: Optional[Dict[str, str]] = None, content_dict: Optional[Dict[str, str]] = None,
-                 return_one: bool = True, style_factor: float = 1.0,
-                 content_factor: float = 1.0, needs_norm: bool = True):
+    """
+    Implements PerceptualLoss as explained in https://arxiv.org/pdf/1603.08155
+    Setting `x_factor = 0` allows to unload that compleately.
+    """
+    def __init__(self, discriminator_network: torch.nn.Module = None, features_dict: Optional[Dict[str, str]] = None,
+                 content_dict: Optional[Dict[str, str]] = None, return_one: bool = True, tv_factor: float = 1.0,
+                 style_factor: float = 1.0, pixel_factor: float = 0.0, content_factor: float = 1.0,
+                 needs_norm: bool = True, custom_transforms: Optional[torchvision.transforms.Compose] = None):
         super().__init__()
 
-        self.model = torchvision.models.vgg16(torchvision.models.VGG16_Weights.DEFAULT).features.eval()\
-            if discriminator_network is None else discriminator_network
+        if discriminator_network is None:
+            self.model = torchvision.models.vgg16(torchvision.models.VGG16_Weights.DEFAULT).features.eval()
+            for p in self.model.parameters():
+                p.requires_grad = False
+        else:
+            self.model = discriminator_network
+
+        if needs_norm:
+            if discriminator_network is None:
+                self.transforms = torchvision.transforms.Compose([
+                    torchvision.transforms.Normalize(mean=[0.48235, 0.45882, 0.40784],
+                                                     std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098])
+                ])
+            else:
+                self.transforms = custom_transforms
 
         if features_dict is None:
-            self.return_features = features_dict
-        else:
             self.return_features = {
                 "3": "first",
                 "8": "second",
                 "15": "third",
                 "22": "fourth"
             }
+        else:
+            self.return_features = features_dict
 
         if content_dict is None:
             self.return_content = {
@@ -67,45 +85,80 @@ class PerceptualLoss(torch.nn.Module):
         else:
             self.return_content = content_dict
 
-        self.feature_model = create_feature_extractor(self.model, self.return_features)
-        self.content_model = create_feature_extractor(self.model, self.return_content)
+        if style_factor != 0:
+            self.feature_model = create_feature_extractor(self.model, self.return_features)
+
+        if content_factor != 0:
+            self.content_model = create_feature_extractor(self.model, self.return_content)
 
         self.return_single = return_one
         self.content_factor = content_factor
         self.style_factor = style_factor
         self.needs_norm = needs_norm
-        self.tv = TotalVariationLoss()
+        self.tv_factor = tv_factor
+        self.pixel_factor = pixel_factor
 
-    def gram_matrix(self, x):
-        pass
+        self.mse = torch.nn.MSELoss()
+
+        if tv_factor != 0:
+            self.tv = TotalVariationLoss()
+
+    def gram_matrix(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Compute Gramm matric of tensor with size CxWxH (output from discriminator network).
+        :param x: Individual tensor for feature map at layer i.
+        :return: CxC Gram matrix tensor.
+        """
+        c, w, h = x.size()
+        return torch.mm(x.view(c, w * h), x.view(c, w * h).t()) / (c * h * w)
 
     def calc_style_loss(self, target: Dict[str, torch.Tensor], generated: Dict[str, torch.Tensor]) -> torch.Tensor:
-        pass
+        output = torch.zeros(1)
+
+        for layer_name in target.keys():
+            for i, j in zip(target[layer_name], generated[layer_name]):
+                output += (self.gram_matrix(i) - self.gram_matrix(j)).pow(2).sum()
+
+        return output
 
     def calc_content_loss(self, original: Dict[str, torch.Tensor], generated: Dict[str, torch.Tensor]) -> torch.Tensor:
-        pass
+        output = torch.zeros(1)
+
+        for layer_name in original.keys():
+            for i, j in zip(original[layer_name], generated[layer_name]):
+                output += self.mse(i, j)
+
+        return output
 
     def forward(self, original, target, generated):
-        original_content = self.content_model(self.transforms(original) if self.needs_norm else original)
-        generated_content = self.content_model(self.transforms(generated) if self.needs_norm else generated)
-
-        generated_features = self.feature_model(self.transforms(generated) if self.needs_norm else generated)
-        target_features = self.feature_model(self.transforms(target) if self.needs_norm else target)
-
         style_loss = 0
         content_loss = 0
-        total_variation_loss = self.tv(generated)
+        total_variation_loss = 0
+        pixel_loss = 0
+
+        if self.tv_factor != 0:
+            total_variation_loss = self.tv(generated)
 
         if self.style_factor != 0:
+            generated_features = self.feature_model(self.transforms(generated) if self.needs_norm else generated)
+            target_features = self.feature_model(self.transforms(target) if self.needs_norm else target)
             style_loss = self.calc_style_loss(target_features, generated_features)
 
         if self.content_factor != 0:
+            original_content = self.content_model(self.transforms(original) if self.needs_norm else original)
+            generated_content = self.content_model(self.transforms(generated) if self.needs_norm else generated)
             content_loss = self.calc_content_loss(original_content, generated_content)
 
+        if self.pixel_factor != 0:
+            pixel_loss = self.mse(original, target)
+
         if self.return_single:
-            return self.style_factor * style_loss + self.content_factor * content_loss + total_variation_loss
+            return (self.style_factor * style_loss
+                    + self.content_factor * content_loss
+                    + self.tv_factor * total_variation_loss
+                    + self.pixel_factor * pixel_loss)
         else:
-            return style_loss, content_loss, total_variation_loss
+            return style_loss, content_loss, total_variation_loss, pixel_loss
 
 
 class TotalVariationLoss(torch.nn.Module):
