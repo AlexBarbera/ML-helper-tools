@@ -6,13 +6,14 @@ from typing import Optional, Dict
 
 
 class WassersteinLoss(torch.nn.Module):
-    def __init__(self, format_channels: str = "WHC", **kwargs):
+    def __init__(self, format_channels: str = "WHC", reduction: bool = True, **kwargs):
         super().__init__()
         assert "C" in format and "W" in format and "H" in format_channels and len(format_channels) == 3, (
             "Missing element in format, expected `C` and `W` and `H`, found {}".format(format_channels)
         )
         self.module = geomloss.SamplesLoss(**kwargs)
         self.format = format_channels
+        self.reduction = reduction
 
     def to_pointcloud(self, x):
         b, h, w, c = 1, 1, 1, 1
@@ -38,7 +39,10 @@ class WassersteinLoss(torch.nn.Module):
         pc_g = self.to_pointcloud(generated)
         pc_t = self.to_pointcloud(target)
 
-        return self.module(pc_g, pc_t)
+        if self.reduction:
+            return self.module(pc_g, pc_t).sum()
+        else:
+            return pc_g, pc_t
 
 
 class PerceptualLoss(torch.nn.Module):
@@ -47,7 +51,7 @@ class PerceptualLoss(torch.nn.Module):
     Setting `x_factor = 0` allows to unload that compleately.
     """
     def __init__(self, discriminator_network: torch.nn.Module = None, features_dict: Optional[Dict[str, str]] = None,
-                 content_dict: Optional[Dict[str, str]] = None, return_one: bool = True, tv_factor: float = 1.0,
+                 content_dict: Optional[Dict[str, str]] = None, reduction: bool = True, tv_factor: float = 1.0,
                  style_factor: float = 1.0, pixel_factor: float = 0.0, content_factor: float = 1.0,
                  needs_norm: bool = True, custom_transforms: Optional[torchvision.transforms.Compose] = None):
         super().__init__()
@@ -62,8 +66,10 @@ class PerceptualLoss(torch.nn.Module):
         if needs_norm:
             if discriminator_network is None:
                 self.transforms = torchvision.transforms.Compose([
-                    torchvision.transforms.Normalize(mean=[0.48235, 0.45882, 0.40784],
-                                                     std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098])
+                    torchvision.transforms.Normalize(
+                        mean=[0.48235, 0.45882, 0.40784],
+                        std=[0.00392156862745098, 0.00392156862745098, 0.00392156862745098]
+                    )
                 ])
             else:
                 self.transforms = custom_transforms
@@ -91,7 +97,7 @@ class PerceptualLoss(torch.nn.Module):
         if content_factor != 0:
             self.content_model = create_feature_extractor(self.model, self.return_content)
 
-        self.return_single = return_one
+        self.reduction = reduction
         self.content_factor = content_factor
         self.style_factor = style_factor
         self.needs_norm = needs_norm
@@ -105,7 +111,7 @@ class PerceptualLoss(torch.nn.Module):
 
     def gram_matrix(self, x: torch.Tensor) -> torch.Tensor:
         """
-        Compute Gramm matric of tensor with size CxWxH (output from discriminator network).
+        Compute Gramm matrix of tensor with size CxWxH (output from discriminator network).
         :param x: Individual tensor for feature map at layer i.
         :return: CxC Gram matrix tensor.
         """
@@ -152,23 +158,25 @@ class PerceptualLoss(torch.nn.Module):
         if self.pixel_factor != 0:
             pixel_loss = self.mse(original, target)
 
-        if self.return_single:
-            return (self.style_factor * style_loss
+        if self.reduction:
+            return (
+                    self.style_factor * style_loss
                     + self.content_factor * content_loss
                     + self.tv_factor * total_variation_loss
-                    + self.pixel_factor * pixel_loss)
+                    + self.pixel_factor * pixel_loss
+            )
         else:
             return style_loss, content_loss, total_variation_loss, pixel_loss
 
 
 class TotalVariationLoss(torch.nn.Module):
-    def __init__(self, format_channels: str = "CWH", weight: float = 1.0):
+    def __init__(self, format_channels: str = "CWH", alpha: float = 1.0):
         super().__init__()
         assert "C" in format and "W" in format and "H" in format_channels and len(format_channels) == 3, (
             "Missing element in format, expected `C` and `W` and `H`, found {}".format(format_channels)
         )
 
-        self.weight = weight
+        self.weight = alpha
         self.format = format_channels
 
     def forward(self, x):
@@ -193,16 +201,16 @@ class DeepEnergyLoss(torch.nn.Module):
     """
     https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial8/Deep_Energy_Models.html
     """
-    def __init__(self, alpha: float = 1.0, return_single: bool = True):
+    def __init__(self, alpha: float = 1.0, reduction: bool = True):
         super().__init__()
         self.alpha = alpha
-        self.return_single = return_single
+        self.reduction = reduction
 
     def forward(self, pred_true, pred_false):
         loss_reg = self.alpha * (pred_true ** 2 + pred_false ** 2).mean()
         loss_div = pred_false.mean() - pred_true.mean()
 
-        if self.return_single:
+        if self.reduction:
             return loss_reg + loss_div
         else:
             return loss_reg, loss_div
