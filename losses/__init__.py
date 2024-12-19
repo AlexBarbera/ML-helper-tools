@@ -46,7 +46,7 @@ class PerceptualLoss(torch.nn.Module):
                  return_one: bool = True, style_factor: float = 1.0,
                  content_factor: float = 1.0, needs_norm: bool = True):
         super().__init__()
-        
+
         self.model = torchvision.models.vgg16(torchvision.models.VGG16_Weights.DEFAULT).features.eval()\
             if discriminator_network is None else discriminator_network
 
@@ -134,3 +134,22 @@ class TotalVariationLoss(torch.nn.Module):
             b = torch.pow(x[:, :, :, 1:] - x[:, :, :, :-1], 2).sum()
 
         return self.weight * (a + b) / (bs_img * c_img * h_img * w_img)
+
+
+class DeepEnergyLoss(torch.nn.Module):
+    """
+    https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial8/Deep_Energy_Models.html
+    """
+    def __init__(self, alpha: float = 1.0, return_single: bool = True):
+        super().__init__()
+        self.alpha = alpha
+        self.return_single = return_single
+
+    def forward(self, pred_true, pred_false):
+        loss_reg = self.alpha * (pred_true ** 2 + pred_false ** 2).mean()
+        loss_div = pred_false.mean() - pred_true.mean()
+
+        if self.return_single:
+            return loss_reg + loss_div
+        else:
+            return loss_reg, loss_div
