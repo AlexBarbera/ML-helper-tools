@@ -13,6 +13,8 @@ The idea is to have a single repo to refer to for implementation and editing ins
 ## Models
  - CycleGAN
  - Siamese Network
+ - ResNet Generator
+ - MultiLayer Perceptron (Linear and Convolutional)
 
 ## Utils
  - LightningWrapper for training
