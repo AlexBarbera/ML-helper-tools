@@ -11,7 +11,8 @@ class ImagePool:
     """
     With probability `p`, return an image from cache instead of passed image.
     """
-    def __init__(self, capacity: int=100, p: float = 0.5):
+
+    def __init__(self, capacity: int = 100, p: float = 0.5):
         assert 0 < p < 1.0, "Invalid probability value, expected ]0,1], found: {}".format(p)
         assert capacity >= 0, "Invalid capacity {}".format(capacity)
         self.capacity = capacity
@@ -133,15 +134,46 @@ class CycleGAN(torch.nn.Module):  # TODO implement replay buffer
 
         return genA_loss, genB_loss, discA_loss, discB_loss
 
-    def forward(self, x):
-        fakeA = self.netBA(x)
-        fakeB = self.netAB(x)
+    def forward(self, x: torch.Tensor | tuple):
+        a, b = None, None
+
+        if isinstance(x, tuple):
+            if len(tuple) == 2:
+                a, b = x
+            else:
+                raise ValueError("Invalid tuple format, expected (tensor, tensor) found length: {}".format(len(x)))
+
+        if x.ndim == 4 and x.shape[0] == 2:
+            a, b = x
+        elif x.ndim == 4 and x.shape[0] == 1:
+            if not self.training:
+                a = x
+            else:
+                raise ValueError("Shape of tensor must be (2, batch, channel, width, height) for training, "
+                                 "found : {}".format(x.shape))
+        else:
+            raise ValueError("Invalid number of dimansions expercted (2, batch, channel, width, height) or "
+                             "(1, batch, channel, width, height) found: {}".format(x.shape))
+
+        fakeA = None
+        fakeB = None
+        recA = None
+        recB = None
+        idtA = None
+        idtB = None
+        discA = None
+        discB = None
+
+        fakeB = self.netAB(a)
         recA = self.netBA(fakeB)
-        recB = self.netAB(fakeA)
-        idtA = self.netBA(x)
-        idtB = self.netAB(x)
-        discA = self.discA(x)
-        discB = self.discB(x)
+        idtA = self.netBA(a)
+        discA = self.discA(a)
+
+        if b is not None:
+            fakeA = self.netBA(b)
+            recB = self.netAB(fakeA)
+            idtB = self.netAB(b)
+            discB = self.discB(b)
 
         return fakeA, fakeB, recA, recB, idtA, idtB, discA, discB
 
@@ -151,7 +183,8 @@ class CycleGAN(torch.nn.Module):  # TODO implement replay buffer
 
 
 class ResnetGenerator(torch.nn.Module):
-    """Resnet-based generator copyed from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
+    """
+    Resnet-based generator copied from https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix
     """
 
     def __init__(self, input_nc, output_nc, ngf=64, norm_layer=torch.nn.BatchNorm2d, use_dropout=False, n_blocks=6,
@@ -167,7 +200,7 @@ class ResnetGenerator(torch.nn.Module):
             n_blocks (int)      -- the number of ResNet blocks
             padding_type (str)  -- the name of padding layer in conv layers: reflect | replicate | zero
         """
-        assert(n_blocks >= 0)
+        assert (n_blocks >= 0)
         super(ResnetGenerator, self).__init__()
         if type(norm_layer) == functools.partial:
             use_bias = norm_layer.func == torch.nn.InstanceNorm2d
@@ -187,7 +220,7 @@ class ResnetGenerator(torch.nn.Module):
                       torch.nn.ReLU(True)]
 
         mult = 2 ** n_downsampling
-        for i in range(n_blocks):       # add ResNet blocks
+        for i in range(n_blocks):  # add ResNet blocks
 
             model += [ResnetBlock(ngf * mult, padding_type=padding_type, norm_layer=norm_layer, use_dropout=use_dropout,
                                   use_bias=use_bias)]
@@ -195,9 +228,9 @@ class ResnetGenerator(torch.nn.Module):
         for i in range(n_downsampling):  # add upsampling layers
             mult = 2 ** (n_downsampling - i)
             model += [torch.nn.ConvTranspose2d(ngf * mult, int(ngf * mult / 2),
-                                         kernel_size=3, stride=2,
-                                         padding=1, output_padding=1,
-                                         bias=use_bias),
+                                               kernel_size=3, stride=2,
+                                               padding=1, output_padding=1,
+                                               bias=use_bias),
                       norm_layer(int(ngf * mult / 2)),
                       torch.nn.ReLU(True)]
         model += [torch.nn.ReflectionPad2d(3)]
@@ -287,7 +320,7 @@ class MLP(torch.nn.Module):
         self.model.append(activation())
 
         for i in range(len(hidden_layers) - 1):
-            self.model.append(torch.nn.Linear(hidden_layers[i], hidden_layers[i+1], bias=use_bias))
+            self.model.append(torch.nn.Linear(hidden_layers[i], hidden_layers[i + 1], bias=use_bias))
             self.model.append(activation())
 
         self.model.append(torch.nn.Linear(hidden_layers[-1], output_n, bias=use_bias))
@@ -315,7 +348,7 @@ class ConvMLP(torch.nn.Module):
         self.conv.append(activation())
 
         for i in range(len(channels) - 1):
-            self.conv.append(torch.nn.Conv2d(channels[i], channels[i+1], bias=use_bias, kernel_size=kernels[i]))
+            self.conv.append(torch.nn.Conv2d(channels[i], channels[i + 1], bias=use_bias, kernel_size=kernels[i]))
             self.conv.append(activation())
             if batch_norm is not None:
                 self.conv.append(batch_norm())
@@ -332,14 +365,15 @@ class SiameseNetwork(torch.nn.Module):
     """
     https://github.com/pytorch/examples/blob/main/siamese_network/main.py
     """
+
     def __init__(self, backbone: Optional[torch.nn.Module], classifier: Optional[torch.nn.Module],
                  feature_union_method: Any["cat", "bilinear", "bilinear_multi"] = "cat",
                  backbone_output_shape: Optional[int] = None):
         super(SiameseNetwork, self).__init__()
 
         assert feature_union_method == "cat" or feature_union_method == "bilinear", (
-            "Invalid union method, expected[\"cat\", \"bilinear\", \"bilinear-multi\"] " +
-            "but found {}".format(feature_union_method)
+                "Invalid union method, expected[\"cat\", \"bilinear\", \"bilinear-multi\"] " +
+                "but found {}".format(feature_union_method)
         )
 
         if backbone is not None:
@@ -376,7 +410,7 @@ class SiameseNetwork(torch.nn.Module):
         features = None
 
         if self.union_method == "cat":
-            features = torch.cat( (features_x, features_y), 1)
+            features = torch.cat((features_x, features_y), 1)
         elif self.union_method == "bilinear":  # TODO validate
             features = torch.einsum("bijk,bilm->bkm", features_x, features_y)  # batch,channel matrix mult
         elif self.union_method == "bilinear-multi":  # TODO validate
