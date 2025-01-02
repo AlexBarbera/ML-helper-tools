@@ -1,2 +1,2 @@
-from ImageLosses import WassersteinLoss, PerceptualLoss, TotalVariationLoss
-from ClassificationLosses import DeepEnergyLoss
+from .ImageLosses import WassersteinLoss, PerceptualLoss, TotalVariationLoss
+from .ClassificationLosses import DeepEnergyLoss

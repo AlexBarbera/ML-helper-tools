@@ -173,7 +173,7 @@ class PerceptualLoss(torch.nn.Module):
 class TotalVariationLoss(torch.nn.Module):
     def __init__(self, format_channels: str = "CWH", alpha: float = 1.0):
         super().__init__()
-        assert "C" in format and "W" in format and "H" in format_channels and len(format_channels) == 3, (
+        assert "C" in format_channels and "W" in format_channels and "H" in format_channels and len(format_channels) == 3, (
             "Missing element in format, expected `C` and `W` and `H`, found {}".format(format_channels)
         )
 
