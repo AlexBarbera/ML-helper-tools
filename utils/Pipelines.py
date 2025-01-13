@@ -1,21 +1,43 @@
+import os.path
 from typing import Dict
 
 import lightning
+import torch
+
 from models import LightningWrapper
 
 
-def lightning_training_wrapper(model, loss, train_dl, test_dl, train_params: Dict[str, str]):
-    assert "log_dir" in train_params, "`log_dir` not found in `train_params`, found {}".format(train_params.keys())
-    assert "experiment_name" in train_params, "`experiment_name` not found in `train_params`, found {}".format(
-        train_params.keys())
-    assert "accelerator" in train_params, "`accelerator` not found in `train_params`, found {}".format(
-        train_params.keys())
+def lightning_training_wrapper(model: torch.Module, loss: torch.Module, train_dl: torch.utils.data.DataLoader,
+                               test_dl: torch.utils.data.DataLoader, train_params: Dict[str, str]):
+    """
+    Train a model with lightining API for standarization.
+
+    :param model: Pytorch-like model that will be wrapped int a lightning model to train.
+    :param loss: Pytorch loss module to use.
+    :param train_dl: Dataloader to iterate in training.
+    :param test_dl: Dataloader to iterate in validation.
+    :param train_params: Dictionary with paramaters for training. Defaults are: ``{
+        "log_dir": os.path.join(".", "logs"),
+        "experiment_name": "my_experiment",
+        "accelerator": "gpu"
+    }``
+
+    :return: Nothing
+    """
 
     lmodel = LightningWrapper(model, loss)
 
+    params = {
+        "log_dir": os.path.join(".", "logs"),
+        "experiment_name": "my_experiment",
+        "accelerator": "gpu"
+    }  # default params
+
+    params = params | train_params
+
     callbacks = [
         lightning.pytorch.callbacks.ModelCheckpoint(
-            train_params["log_dir"],
+            params["log_dir"],
             save_last=True,
             every_n_epochs=1
         ),
@@ -24,10 +46,10 @@ def lightning_training_wrapper(model, loss, train_dl, test_dl, train_params: Dic
         lightning.pytorch.callbacks.TQDMProgressBar()
     ]
 
-    logger = lightning.pytorch.loggers.TensorBoardLogger(train_params["log_dir"], name=train_params["experiment_name"])
+    logger = lightning.pytorch.loggers.TensorBoardLogger(params["log_dir"], name=params["experiment_name"])
 
     trainer = lightning.Trainer(callbacks=callbacks,
                                 logger=logger,
-                                accelerator=train_params["accelerator"])
+                                accelerator=params["accelerator"])
 
-    trainer.fit(model, train_dataloaders=train_dl, val_dataloaders=test_dl)
+    trainer.fit(lmodel, train_dataloaders=train_dl, val_dataloaders=test_dl)
