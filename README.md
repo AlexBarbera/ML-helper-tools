@@ -9,6 +9,7 @@ The idea is to have a single repo to refer to for implementation and editing ins
  - PerceptualLoss
  - TotalVariationLoss
  - DeepEnergyLoss
+ - CycleGANLoss
 
 ## Models
  - CycleGAN
@@ -19,3 +20,7 @@ The idea is to have a single repo to refer to for implementation and editing ins
 ## Utils
  - LightningWrapper for training
  - TripletDataset
+ - ABDataset
+   - Matches 2 classes of data in pairs.
+ - MulticlassDataset
+   - Matches N classes of data in pairs.
