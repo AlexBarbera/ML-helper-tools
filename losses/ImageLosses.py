@@ -2,7 +2,7 @@ import geomloss
 import torch
 import torchvision
 from torchvision.models.feature_extraction import create_feature_extractor
-from typing import Optional, Dict, Union, Literal
+from typing import Optional, Dict, Union, Literal, Tuple, Any
 
 
 class WassersteinLoss(torch.nn.Module):
@@ -239,7 +239,7 @@ class CycleGANLoss(torch.nn.Module):
         return (self.loss_labels(t, torch.ones_like(t)) + self.loss_labels(f, torch.zeros_like(f))) * 0.5
 
     def backward_gen(self, original: torch.Tensor, reconstructed: torch.Tensor, pred_gen: torch.Tensor,
-                     idt: torch.Tensor, do_idt: bool) -> Union[torch.Tensor, torch.Tensor, torch.Tensor]:
+                     idt: torch.Tensor, do_idt: bool) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         loss_g = self.loss_labels(pred_gen, torch.ones_like(pred_gen))
         loss_rec = self.loss_images(original, reconstructed)
         loss_idt = 0
@@ -249,9 +249,16 @@ class CycleGANLoss(torch.nn.Module):
 
         return loss_g, loss_rec, loss_idt
 
-    def forward(self, data: torch.Tensor | tuple, fakeA: torch.Tensor, fakeB: torch.Tensor, reconstructedA: torch.Tensor,
-                reconstructedB: torch.Tensor, idtA: torch.Tensor, idtB: torch.Tensor, discA: torch.Tensor, discB: torch.Tensor,
-                disc_fakeA: Optional[torch.Tensor] = None, disc_fakeB: Optional[torch.Tensor] = None):
+    def forward(self, data: torch.Tensor | tuple, fakeA: torch.Tensor, fakeB: torch.Tensor,
+                reconstructedA: torch.Tensor, reconstructedB: torch.Tensor, idtA: torch.Tensor, idtB: torch.Tensor,
+                discA: torch.Tensor, discB: torch.Tensor, disc_fakeA: Optional[torch.Tensor] = None,
+                disc_fakeB: Optional[torch.Tensor] = None) -> Any[
+                                                              torch.Tensor |
+                                                              Tuple[
+                                                                  torch.Tensor, torch.Tensor, torch.Tensor,
+                                                                  torch.Tensor, torch.Tensor, torch.Tensor,
+                                                                  torch.Tensor, torch.Tensor
+                                                              ]]:
         batch_a, batch_b = None, None
 
         if (isinstance(data, tuple) and len(data) == 2) or (data.ndim == 4 and data.shape[0] == 2):
