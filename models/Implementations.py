@@ -1,7 +1,7 @@
 import functools
 import itertools
 import random
-from typing import Optional, Union, List, Any
+from typing import Optional, Union, List, Any, Literal
 
 import torch
 import torchvision.models
@@ -367,7 +367,7 @@ class SiameseNetwork(torch.nn.Module):
     """
 
     def __init__(self, backbone: Optional[torch.nn.Module], classifier: Optional[torch.nn.Module],
-                 feature_union_method: Any["cat", "bilinear", "bilinear_multi"] = "cat",
+                 feature_union_method: Literal["cat", "bilinear", "bilinear_multi", "diff"] = "cat",
                  backbone_output_shape: Optional[int] = None):
         super(SiameseNetwork, self).__init__()
 
@@ -415,6 +415,8 @@ class SiameseNetwork(torch.nn.Module):
             features = torch.einsum("bijk,bilm->bkm", features_x, features_y)  # batch,channel matrix mult
         elif self.union_method == "bilinear-multi":  # TODO validate
             features = torch.einsum("bijk,blmn->okn", features_x, features_y)  # all x all matrix mult
+        elif self.union_method == "diff":
+            features = torch.abs(features_x - features_y)
 
         output = self.classifier(features)
 
