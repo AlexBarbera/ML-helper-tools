@@ -4,6 +4,8 @@ This repo contains helper functions and skeletons for training ML models in an a
 
 The idea is to have a single repo to refer to for implementation and editing instead of writting from scratch, this is not supposed to be a script repo.
 
+&nbsp;
+
 ## Losses
  - **WassersteinLoss**
    - Earth-mover distance is a better metric for small permutations in image data compared to `MSELoss`.
@@ -27,6 +29,8 @@ The idea is to have a single repo to refer to for implementation and editing ins
  - **CycleGANLoss**
    - Extracted Cyclegan loss pipeline in case we want to abstract it to somthing different.
 
+&nbsp;
+
 ## Models
  - **CycleGAN**
    - Unaligned datasets for domain tranformation.
@@ -45,12 +49,14 @@ The idea is to have a single repo to refer to for implementation and editing ins
 
 
  - **MultiLayer Perceptron** (Linear and Convolutional)
- - ¯\\_(ツ)_/¯
+   - ¯\\_(ツ)_/¯
+
+&nbsp;
 
 ## Utils
  - LightningWrapper for training
    - Allows to easily use distributed training and GPU/TPU usage.
-   - [Pytorch Lightining](https://lightning.ai/docs/pytorch/stable/starter/introduction.html)
+   - [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/starter/introduction.html)
 
 
  - **TripletDataset**
