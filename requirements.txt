@@ -3,3 +3,5 @@ torchvision >= 0.11.0
 lightning
 geomloss
 pandas
+matplotlib
+numpy

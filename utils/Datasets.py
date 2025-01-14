@@ -1,7 +1,6 @@
 import itertools
 import os.path
 from typing import Callable
-
 import torchvision.io
 from torch import Tensor
 from torch.utils.data import Dataset

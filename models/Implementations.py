@@ -1,7 +1,7 @@
 import functools
 import itertools
 import random
-from typing import Optional, Union, List, Any, Literal
+from typing import Optional, List, Literal
 
 import torch
 import torchvision.models

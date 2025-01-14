@@ -1,6 +1,4 @@
 import unittest
-
-import numpy
 import torch
 import torchvision.io
 

@@ -1,9 +1,9 @@
 import pickle
 import unittest
-
 import matplotlib.pyplot as plt
 import torchvision.io
 import torch
+
 import utils
 
 

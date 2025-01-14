@@ -2,7 +2,7 @@ import geomloss
 import torch
 import torchvision
 from torchvision.models.feature_extraction import create_feature_extractor
-from typing import Optional, Dict, Union, Literal, Tuple, Any
+from typing import Optional, Dict, Literal, Tuple, Any
 
 
 class WassersteinLoss(torch.nn.Module):

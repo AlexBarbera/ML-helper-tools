@@ -1,6 +1,7 @@
 import lightning
 import torch
 
+
 class LightningWrapper(lightning.LightningModule):
     def __init__(self, model, loss):
         super(LightningWrapper, self).__init__()
