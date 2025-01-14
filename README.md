@@ -4,6 +4,7 @@ This repo contains helper functions and skeletons for training ML models in an a
 
 The idea is to have a single repo to refer to for implementation and editing instead of writting from scratch, this is not supposed to be a script repo.
 
+&nbsp;
 
 ## Losses
  ### **WassersteinLoss**
@@ -28,6 +29,7 @@ The idea is to have a single repo to refer to for implementation and editing ins
  ### **CycleGANLoss**
    - Extracted Cyclegan loss pipeline in case we want to abstract it to somthing different.
 
+&nbsp;
 
 ## Models
  ### **CycleGAN**
@@ -48,6 +50,8 @@ The idea is to have a single repo to refer to for implementation and editing ins
 
  ### **MultiLayer Perceptron** (Linear and Convolutional)
    - ¯\\_(ツ)_/¯
+
+&nbsp;
 
 ## Utils
  ### LightningWrapper for training
