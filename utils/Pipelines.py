@@ -7,7 +7,7 @@ import torch
 from models import LightningWrapper
 
 
-def lightning_training_wrapper(model: torch.Module, loss: torch.Module, train_dl: torch.utils.data.DataLoader,
+def lightning_training_wrapper(model: torch.nn.Module, loss: torch.nn.Module, train_dl: torch.utils.data.DataLoader,
                                test_dl: torch.utils.data.DataLoader, train_params: Dict[str, str]):
     """
     Train a model with lightining API for standarization.
