@@ -370,13 +370,14 @@ class SiameseNetwork(torch.nn.Module):
                  feature_union_method: Literal["cat", "bilinear", "bilinear_multi", "diff"] = "cat",
                  backbone_output_shape: Optional[int] = None):
         super(SiameseNetwork, self).__init__()
+        METHODS = ["cat", "diff", "bilinear"]
 
-        assert feature_union_method == "cat" or feature_union_method == "bilinear", (
-                "Invalid union method, expected[\"cat\", \"bilinear\", \"bilinear-multi\"] " +
-                "but found {}".format(feature_union_method)
+        assert feature_union_method in METHODS, (
+                "Invalid union method, expected {} " +
+                "but found {}".format(METHODS, feature_union_method)
         )
 
-        if backbone is not None:
+        if backbone is not None and classifier is None:
             assert backbone_output_shape is not None, "When backbone is not None, `backbone_output_shape` is expected."
 
         self.backbone = None
@@ -404,20 +405,26 @@ class SiameseNetwork(torch.nn.Module):
         self.union_method = feature_union_method
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
+        features = self.forward_backbone(x, y)
+
+        output = self.classifier(features)
+
+        return output
+
+    def forward_backbone(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         features_x = self.backbone(x)
         features_y = self.backbone(y)
 
         features = None
 
         if self.union_method == "cat":
-            features = torch.cat((features_x, features_y), 1)
+            features = torch.cat((features_x, features_y), dim=1)
         elif self.union_method == "bilinear":  # TODO validate
-            features = torch.einsum("bijk,bilm->bkm", features_x, features_y)  # batch,channel matrix mult
-        elif self.union_method == "bilinear-multi":  # TODO validate
-            features = torch.einsum("bijk,blmn->okn", features_x, features_y)  # all x all matrix mult
+            # (batch, channel, width, height) x (batch, channel, width, height) = (b, channel, channel)
+            features = torch.einsum("bijk,bljk->bil", features_x, features_y)  # batch,channel matrix mult
+            features /= (features_x.shape[2] * features_x.shape[3])
         elif self.union_method == "diff":
             features = torch.abs(features_x - features_y)
 
-        output = self.classifier(features)
+        return features
 
-        return output
