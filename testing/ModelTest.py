@@ -109,9 +109,6 @@ class SiameseNetworkTest(unittest.TestCase):
         with self.assertRaises(AssertionError, msg="Invalid union method does not raise AssertionError"):
             models.SiameseNetwork(None, None, feature_union_method="BILINEAR")
 
-        with self.assertRaises(AssertionError, msg="Invalid union method does not raise AssertionError"):
-            models.SiameseNetwork(None, None, feature_union_method=None)
-
     def test_cat_cnn(self):
         data = torch.ones(1, 1, 3, 3)
 

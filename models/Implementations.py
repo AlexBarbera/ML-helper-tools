@@ -370,14 +370,14 @@ class SiameseNetwork(torch.nn.Module):
                  feature_union_method: Literal["cat", "bilinear", "bilinear_multi", "diff"] = "cat",
                  backbone_output_shape: Optional[int] = None):
         super(SiameseNetwork, self).__init__()
-        METHODS = ["cat", "diff", "bilinear"]
+        METHODS = ["cat", "diff", "bilinear", None]
 
         assert feature_union_method in METHODS, (
                 "Invalid union method, expected {} " +
                 "but found {}".format(METHODS, feature_union_method)
         )
 
-        if backbone is not None and classifier is None:
+        if backbone is not None and classifier is None and feature_union_method is not None:
             assert backbone_output_shape is not None, "When backbone is not None, `backbone_output_shape` is expected."
 
         self.backbone = None
@@ -387,27 +387,28 @@ class SiameseNetwork(torch.nn.Module):
         if backbone is None:
             resnet = torchvision.models.resnet18(weights=torchvision.models.ResNet18_Weights.DEFAULT)
             temp_fc_in = resnet.fc.in_features
-            self.backbone = torch.nn.Sequential(*list(resnet.children()[:-1]))
+            self.backbone = torch.nn.Sequential(*list(resnet.children())[:-1])
         else:
             self.backbone = backbone
             temp_fc_in = backbone_output_shape
 
-        if classifier is None:
-            self.classifier = torch.nn.Sequential(
-                torch.nn.Linear(temp_fc_in * 2, 256),
-                torch.nn.ReLU(),
-                torch.nn.Linear(256, 1),
-                torch.nn.Sigmoid()
-            )
-        else:
-            self.classifier = classifier
+        if feature_union_method is not None:
+            if classifier is None:
+                self.classifier = torch.nn.Sequential(
+                    torch.nn.Linear(temp_fc_in * 2, 256),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(256, 1),
+                    torch.nn.Sigmoid()
+                )
+            else:
+                self.classifier = classifier
 
         self.union_method = feature_union_method
 
     def forward(self, x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
         features = self.forward_backbone(x, y)
 
-        output = self.classifier(features)
+        output = self.classifier(features) if self.classifier is not None else features
 
         return output
 
@@ -423,8 +424,14 @@ class SiameseNetwork(torch.nn.Module):
             # (batch, channel, width, height) x (batch, channel, width, height) = (b, channel, channel)
             features = torch.einsum("bijk,bljk->bil", features_x, features_y)  # batch,channel matrix mult
             features /= (features_x.shape[2] * features_x.shape[3])
+
+            features = torch.multiply(torch.sign(features), torch.sqrt(torch.abs(features)))
+
+            features = features / torch.sqrt(torch.max(torch.sum(features ** 2), torch.tensor(1e-8)))  # l2 norm
         elif self.union_method == "diff":
             features = torch.abs(features_x - features_y)
+        elif self.union_method is None:
+            features = features_x, features_y
 
         return features
 
