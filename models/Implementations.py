@@ -435,3 +435,19 @@ class SiameseNetwork(torch.nn.Module):
 
         return features
 
+    class ResidualBlock(torch.nn.Module):
+        def __init__(self, block: torch.nn.Module, merge_method: Literal["add", "concat"]):
+            super().__init__()
+            self.block = block
+            self.merge_method = merge_method
+
+        def forward(self, x):
+            output = None
+
+            if self.merge_method == "add":
+                output = x + self.block(x)
+            elif self.merge_method == "concat":
+                output = torch.cat(x, self.block(x))
+
+            return output
+
