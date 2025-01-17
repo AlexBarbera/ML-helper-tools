@@ -1,3 +1,4 @@
+import os.path
 import pickle
 import unittest
 import matplotlib.pyplot as plt
@@ -9,8 +10,9 @@ import utils
 
 class MahalanobisTest(unittest.TestCase):
     def setUp(self):
-        self.a_bcwh = torchvision.io.read_image("cifar_6.png").float().reshape(-1, 3, 32, 32)
-        self.a_bwhc = torchvision.io.read_image("cifar_6.png").float().reshape(-1, 3, 32, 32).permute(0, 2, 3, 1)
+        wd = os.path.dirname(__file__)
+        self.a_bcwh = torchvision.io.read_image(os.path.join(wd, "cifar_6.png")).float().reshape(-1, 3, 32, 32)
+        self.a_bwhc = torchvision.io.read_image(os.path.join(wd, "cifar_6.png")).float().reshape(-1, 3, 32, 32).permute(0, 2, 3, 1)
         #self.target_a_independent_bcwh = torchvision.io.read_image("cifar_6_zca_independent_channels.png").float().reshape(-1, 3, 32, 32)
         #self.target_a_no_independent_bcwh = torchvision.io.read_image("cifar_6_zca_no_independent_channels.png").float().reshape(-1, 3, 32, 32)
         #self.target_a_independent_bwhc = torchvision.io.read_image("cifar_6_zca_independent_channels.png").float().reshape(-1, 3, 32, 32).permute(0, 2, 3, 1)
@@ -26,28 +28,28 @@ class MahalanobisTest(unittest.TestCase):
         self.target_batcha_no_independent_bwhc = None
         self.target_batcha_no_independent_bcwh = None
 
-        with open("cifar_6_zca_independent_channels.pkl", "rb") as f:  # 32,32,3
+        with open(os.path.join(wd, "cifar_6_zca_independent_channels.pkl"), "rb") as f:  # 32,32,3
             self.target_a_independent_bwhc = pickle.load(f)
             self.target_a_independent_bwhc = self.target_a_independent_bwhc.reshape(1, *self.target_a_independent_bwhc.shape)
-        with open("cifar_6_zca_independent_channels.pkl", "rb") as f:  # 32,32,3
+        with open(os.path.join(wd, "cifar_6_zca_independent_channels.pkl"), "rb") as f:  # 32,32,3
             self.target_a_independent_bcwh = pickle.load(f).permute(2, 0, 1)
             self.target_a_independent_bcwh = self.target_a_independent_bcwh.reshape(1, *self.target_a_independent_bcwh.shape)
 
-        with open("cifar_6_zca_no_independent_channels.pkl", "rb") as f:  # 32,32,3
+        with open(os.path.join(wd, "cifar_6_zca_no_independent_channels.pkl"), "rb") as f:  # 32,32,3
             self.target_a_no_independent_bwhc = pickle.load(f)
             self.target_a_no_independent_bwhc = self.target_a_no_independent_bwhc.reshape(1, *self.target_a_no_independent_bwhc.shape)
-        with open("cifar_6_zca_no_independent_channels.pkl", "rb") as f:  # 32,32,3
+        with open(os.path.join(wd, "cifar_6_zca_no_independent_channels.pkl"), "rb") as f:  # 32,32,3
             self.target_a_no_independent_bcwh = pickle.load(f).permute(2, 0, 1)
             self.target_a_no_independent_bcwh = self.target_a_no_independent_bcwh.reshape(1, *self.target_a_no_independent_bcwh.shape)
 
-        with open("cifar_batch2x6_zca_independent_channels.pkl", "rb") as f:
+        with open(os.path.join(wd, "cifar_batch2x6_zca_independent_channels.pkl"), "rb") as f:
             self.target_batcha_independent_bcwh = pickle.load(f).permute(0, 3, 1, 2)
-        with open("cifar_batch2x6_zca_independent_channels.pkl", "rb") as f:
+        with open(os.path.join(wd, "cifar_batch2x6_zca_independent_channels.pkl"), "rb") as f:
             self.target_batcha_independent_bwhc = pickle.load(f)
 
-        with open("cifar_batch2x6_zca_no_independent_channels.pkl", "rb") as f:
+        with open(os.path.join(wd, "cifar_batch2x6_zca_no_independent_channels.pkl"), "rb") as f:
             self.target_batcha_no_independent_bcwh = pickle.load(f).permute(0, 3, 1, 2)
-        with open("cifar_batch2x6_zca_no_independent_channels.pkl", "rb") as f:
+        with open(os.path.join(wd, "cifar_batch2x6_zca_no_independent_channels.pkl"), "rb") as f:
             self.target_batcha_no_independent_bwhc = pickle.load(f)
 
     def test_independent_single_bcwh(self):
@@ -95,7 +97,7 @@ class MahalanobisTest(unittest.TestCase):
     def test_not_independent_batch_bcwh(self):
         b1 = torch.vstack([self.a_bcwh, self.a_bcwh])
 
-        x = utils.mahalanobis_whitening_batch(b1, batch_format="BCWH", independent_channels=True)
+        x = utils.mahalanobis_whitening_batch(b1, batch_format="BCWH", independent_channels=False)
 
         self.assertTrue(torch.equal(x, self.target_batcha_no_independent_bcwh),
                          msg="Target for ZCA whitening for independent channels not correct.")

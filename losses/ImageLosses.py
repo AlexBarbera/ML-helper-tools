@@ -6,12 +6,22 @@ from typing import Optional, Dict, Literal, Tuple, Any
 
 
 class WassersteinLoss(torch.nn.Module):
+    """
+    Earth mover distance loss from https://www.kernel-operations.io/geomloss
+    """
+
     def __init__(self, format_channels: str = "WHC", reduction: bool = True, **kwargs):
         super().__init__()
-        assert "C" in format and "W" in format and "H" in format_channels and len(format_channels) == 3, (
+        assert "C" in format_channels and "W" in format_channels and "H" in format_channels and len(format_channels) == 3, (
             "Missing element in format, expected `C` and `W` and `H`, found {}".format(format_channels)
         )
-        self.module = geomloss.SamplesLoss(**kwargs)
+        sl_args = {
+            "blur": 0.001
+        }
+
+        sl_args |= kwargs
+
+        self.loss_module = geomloss.SamplesLoss(**sl_args)
         self.format = format_channels
         self.reduction = reduction
 
@@ -31,18 +41,18 @@ class WassersteinLoss(torch.nn.Module):
             elif self.format == "CWH" or self.format == "CHW":
                 c, h, w = x.size()
             else:
-                h, c, w, = x.size()
+                h, c, w = x.size()
 
-        return x.view(b, c, w * h)
+        return x.view(b, w * h, c)
 
     def forward(self, generated, target):
         pc_g = self.to_pointcloud(generated)
         pc_t = self.to_pointcloud(target)
 
         if self.reduction:
-            return self.module(pc_g, pc_t).sum()
+            return self.loss_module(pc_g, pc_t).sum()
         else:
-            return pc_g, pc_t
+            return self.loss_module(pc_g, pc_t)
 
 
 class PerceptualLoss(torch.nn.Module):
@@ -252,13 +262,12 @@ class CycleGANLoss(torch.nn.Module):
     def forward(self, data: torch.Tensor | tuple, fakeA: torch.Tensor, fakeB: torch.Tensor,
                 reconstructedA: torch.Tensor, reconstructedB: torch.Tensor, idtA: torch.Tensor, idtB: torch.Tensor,
                 discA: torch.Tensor, discB: torch.Tensor, disc_fakeA: Optional[torch.Tensor] = None,
-                disc_fakeB: Optional[torch.Tensor] = None) -> Any[
-                                                              torch.Tensor |
+                disc_fakeB: Optional[torch.Tensor] = None) -> torch.Tensor | \
                                                               Tuple[
                                                                   torch.Tensor, torch.Tensor, torch.Tensor,
                                                                   torch.Tensor, torch.Tensor, torch.Tensor,
                                                                   torch.Tensor, torch.Tensor
-                                                              ]]:
+                                                              ]:
         batch_a, batch_b = None, None
 
         if (isinstance(data, tuple) and len(data) == 2) or (data.ndim == 4 and data.shape[0] == 2):

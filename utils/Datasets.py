@@ -1,6 +1,6 @@
 import itertools
 import os.path
-from typing import Callable
+from typing import Callable, Optional
 import torchvision.io
 from torch import Tensor
 from torch.utils.data import Dataset
@@ -112,7 +112,7 @@ class ABDataset(Dataset):
     """
 
     def __init__(self, index_path: str, load_fn: Callable[[str], Tensor] = torchvision.io.decode_image,
-                 do_matching: bool = False):
+                 do_matching: bool = False, folder_a: Optional[str] = "A", folder_b: Optional[str] = "B"):
         super(ABDataset, self).__init__()
 
         self.data = None
@@ -141,12 +141,12 @@ class ABDataset(Dataset):
         else:  # is directory, so iterate and build index
             folders = [x for x in os.listdir(index_path) if os.path.isdir(x)]
 
-            assert "A" in folders and "B" in folders, (
-                "Missing folders for `A` and `B` in {}, found {}".format(index_path, folders)
+            assert folder_a in folders and folder_b in folders, (
+                "Cannot find {} or {} in {}, found {}".format(folder_a, folder_b, index_path, folders)
             )
 
-            A = os.listdir(os.path.join(index_path, "A"))
-            B = os.listdir(os.path.join(index_path, "B"))
+            A = os.listdir(os.path.join(index_path, folder_a))
+            B = os.listdir(os.path.join(index_path, folder_b))
 
             self.data = pandas.DataFrame(
                 itertools.product(A, B),

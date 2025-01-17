@@ -1,5 +1,8 @@
 import unittest
+
+import matplotlib.pyplot as plt
 import torch.nn
+import torchvision.models.feature_extraction
 import models
 
 
@@ -151,3 +154,94 @@ class SiameseNetworkTest(unittest.TestCase):
         self.assertEqual(hidden.flatten(start_dim=1).shape[1], 100, "Hidden features incorrect count.")
 
         self.assertEqual(output.ndim, 2, msg="Output has wrong ndim")
+
+
+class AutoencoderTest(unittest.TestCase):
+    def test_autoencoder(self):
+        enc = torch.nn.Sequential(
+            torch.nn.Linear(19, 12),
+            torch.nn.ReLU(),
+        )
+
+        dec = torch.nn.Sequential(
+            torch.nn.Linear(12, 19),
+            torch.nn.ReLU()
+        )
+
+        model = models.DynamicAutoencoder(enc, dec)
+        data = torch.ones(1, 19)
+
+        encoded1 = model.encode(data)
+        decoded = model.decode(encoded1)
+        encoded, reconstructed = model(data)
+
+        self.assertTrue(torch.equal(encoded, encoded1))
+        self.assertTrue(torch.equal(decoded, reconstructed))
+
+
+    def test_vae(self):
+        enc = torch.nn.Sequential(
+            torch.nn.Linear(19, 12),
+            torch.nn.ReLU(),
+        )
+
+        dec = torch.nn.Sequential(
+            torch.nn.Linear(12, 19),
+            torch.nn.ReLU()
+        )
+        m = torch.nn.Linear(12, 12)
+        v = torch.nn.Linear(12, 12)
+        model = models.DynamicVariationalAutoencoder(enc, dec, m, v)
+
+        data = torch.ones(1, 19)
+
+        encoded_mean, encoded_var = model.encode(data)
+        decoded = model.decode([encoded_mean, encoded_var], reparametrize=True)
+        encoded_mean1, encoded_var1, reconstructed = model(data)
+
+        # cannot check reconstuction because reparametrization adds randomness
+        self.assertTrue(torch.equal(encoded_mean, encoded_mean1))
+        self.assertTrue(torch.equal(encoded_var, encoded_var1))
+
+
+
+if __name__ == "__main__":
+    dataset = torchvision.datasets.MNIST("/tmp/mnist",train=True,  download=True,
+                                         transform=torchvision.transforms.Compose(
+                                  [ torchvision.transforms.ToTensor(), torchvision.transforms.Resize(244),
+                                    torchvision.transforms.Lambda(lambda x: x.expand(3, 244, 244))
+                                    ]
+                              ))
+
+    val = torchvision.datasets.MNIST(root='/tmp/mnist_val', train=False, download=True,
+                              transform=torchvision.transforms.Compose(
+                                  [ torchvision.transforms.ToTensor(),torchvision.transforms.Resize(244),
+                                    torchvision.transforms.Lambda(lambda x: x.expand(3, 244, 244))
+                                    ]
+                              )
+                                     )
+    train_loader = torch.utils.data.DataLoader(dataset, batch_size=64, shuffle=True)
+    val = torch.utils.data.DataLoader(val, batch_size=64, shuffle=True)
+    EPOCHS = 20
+    N_show = 10
+
+    model = models.VGGAutoencoder(vgg_type="A")
+    optim = torch.optim.Adam(model.parameters())
+
+    f, ax = plt.subplots(EPOCHS, N_show)
+    for epoch in range(EPOCHS):
+        for x, target in train_loader:
+            optim.zero_grad()
+            _, y = model(x)
+            loss = torch.nn.MSELoss()(x, y)
+            loss.backward()
+            optim.step()
+        for x, target in val:
+            y = model(x)
+            for j in range(N_show):
+                ax[epoch, j].imshow(y[j][0])
+            break
+        plt.draw()
+
+
+

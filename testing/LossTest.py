@@ -1,6 +1,7 @@
 import unittest
 import torch
 import torchvision.io
+import os
 
 import losses
 
@@ -34,9 +35,10 @@ class TotalVariationLossTest(unittest.TestCase):
 
 class PerceptualLossTest(unittest.TestCase):
     def setUp(self):
+        wd = os.path.dirname(__file__)
         self.loss = losses.PerceptualLoss(tv_factor=0)
-        self.data1 = torchvision.io.read_image("cifar_6.png").float().reshape(-1, 3, 32, 32)
-        self.data2 = torchvision.io.read_image("cifar_9.png").float().reshape(-1, 3, 32, 32)
+        self.data1 = torchvision.io.read_image(os.path.join(wd, "cifar_6.png")).float().reshape(-1, 3, 32, 32)
+        self.data2 = torchvision.io.read_image(os.path.join(wd, "cifar_9.png")).float().reshape(-1, 3, 32, 32)
 
     def test_equal(self):
         self.assertEqual(
@@ -69,3 +71,32 @@ class DeepEneryLossTest(unittest.TestCase):
         self.assertAlmostEqual(reg.item(), 0.6933, places=4)
         self.assertAlmostEqual(div, 0.6, places=2)
         self.assertAlmostEqual(self.loss2(a, b).item(), 0.9467, places=4)
+
+
+class WassersteinLoss(unittest.TestCase):
+    def setUp(self):
+        self.loss = losses.WassersteinLoss(format_channels="CWH")
+
+    def test_Wasserstein_init(self):
+        with self.assertRaises(AssertionError, msg="Invalid channel format should raise error"):
+            l = losses.WassersteinLoss(format_channels="CAH")
+        with self.assertRaises(AssertionError, msg="Invalid channel format should raise error"):
+            l = losses.WassersteinLoss(format_channels="CWA")
+        with self.assertRaises(AssertionError, msg="Invalid channel format should raise error"):
+            l = losses.WassersteinLoss(format_channels="AWH")
+
+    def test_equal(self):
+        data = torch.ones(1, 24, 24)
+        data = torch.randn_like(data)
+        l = self.loss(data, data)
+
+        self.assertTrue(torch.equal(l, torch.tensor(0)))
+
+    def test_diff(self):
+        data = torch.ones(1, 24, 24)
+        data = torch.randn_like(data)
+        data1 = torch.randn_like(data)
+        l = self.loss(data, data1)
+
+        self.assertFalse(torch.equal(l, torch.tensor(0)))
+

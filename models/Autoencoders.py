@@ -3,37 +3,6 @@ from typing import List, Optional
 import torch
 
 
-def create_inverse_layer(layer: torch.nn.Module) -> torch.nn.Module:
-    output = None
-    if isinstance(layer, torch.nn.Linear):
-        output = torch.nn.Linear(layer.out_features, layer.in_features, bias=layer.bias is not None)
-    elif isinstance(layer, torch.nn.Conv2d):
-        output = torch.nn.ConvTranspose2d(
-            layer.out_channels, layer.in_channels,
-            layer.kernel_size, layer.stride, layer.output_padding, layer.padding,  layer.groups,
-            layer.bias is not None, layer.dilation, layer.padding_mode
-        )
-    elif isinstance(layer, torch.nn.ConvTranspose2d):
-        output = torch.nn.Conv2d(
-            layer.out_channels, layer.in_channels,
-            layer.kernel_size, layer.stride, layer.output_padding, layer.padding,  layer.groups,
-            layer.bias is not None, layer.dilation, layer.padding_mode
-        )
-    elif isinstance(layer, torch.nn.Conv3d):
-        output = torch.nn.ConvTranspose3d(
-            layer.out_channels, layer.in_channels,
-            layer.kernel_size, layer.stride, layer.output_padding, layer.padding,  layer.groups,
-            layer.bias is not None, layer.dilation, layer.padding_mode
-        )
-    elif isinstance(layer, torch.nn.ConvTranspose3d):
-        output = torch.nn.Conv3d(
-            layer.out_channels, layer.in_channels,
-            layer.kernel_size, layer.stride, layer.output_padding, layer.padding,  layer.groups,
-            layer.bias is not None, layer.dilation, layer.padding_mode
-        )
-    return output
-
-
 class SimpleLinearAutoencoder(torch.nn.Module):
     def __init__(self, layer_struct: List[int], activations: List[torch.nn.Module],
                  final_activation: Optional[torch.nn.Module] = None):
@@ -72,9 +41,10 @@ class SimpleLinearAutoencoder(torch.nn.Module):
 
 class DynamicAutoencoder(torch.nn.Module):
     def __init__(self, blocks_enc: List[torch.nn.Module], blocks_dec: List[torch.nn.Module]):
+        assert len(blocks_enc) == len(blocks_dec), "Blocks should have same size."
         super().__init__()
-        self.encoder = torch.nn.ModuleList()
-        self.decoder = torch.nn.ModuleList()
+        self.encoder = torch.nn.Sequential()
+        self.decoder = torch.nn.Sequential()
 
         for i in range(len(blocks_enc)):
             self.encoder.append(
@@ -91,8 +61,8 @@ class DynamicAutoencoder(torch.nn.Module):
         return self.decoder(x)
 
     def forward(self, x):
-        encoded = self.encoder(x)
-        decoded = self.decoder(encoded)
+        encoded = self.encode(x)
+        decoded = self.decode(encoded)
 
         return encoded, decoded
 
@@ -117,8 +87,11 @@ class DynamicVariationalAutoencoder(DynamicAutoencoder):
 
         return m, lv
 
-    def decode(self, x):
-        return self.decoder(x)
+    def decode(self, x, reparametrize=False):
+        if reparametrize:
+            return self.decode(self._reparametrization(*x))
+        else:
+            return self.decoder(x)
 
     def forward(self, x):
         m, lv = self.encode(x)
@@ -148,4 +121,5 @@ class DynamicUNet(DynamicAutoencoder):
             y = self.decoder[i](y + encoded_outs[len(encoded_outs) - i - 1])
 
         return y
+
 
