@@ -109,11 +109,11 @@ class PerceptualLoss(torch.nn.Module):
             self.content_model = create_feature_extractor(self.model, self.return_content)
 
         self.reduction = reduction
-        self.content_factor = content_factor
-        self.style_factor = style_factor
+        self.content_factor = content_factor if content_factor is not None else 0
+        self.style_factor = style_factor if style_factor is not None else 0
         self.needs_norm = needs_norm
-        self.tv_factor = tv_factor
-        self.pixel_factor = pixel_factor
+        self.tv_factor = tv_factor if tv_factor is not None else 0
+        self.pixel_factor = pixel_factor if pixel_factor is not None else 0
 
         self.mse = torch.nn.MSELoss()
 
@@ -167,7 +167,7 @@ class PerceptualLoss(torch.nn.Module):
             content_loss = self.calc_content_loss(original_content, generated_content)
 
         if self.pixel_factor != 0:
-            pixel_loss = self.mse(original, target)
+            pixel_loss = self.mse(generated, target)
 
         if self.reduction:
             return (
