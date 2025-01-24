@@ -57,6 +57,10 @@ The idea is to have a single repo to refer to for implementation and editing ins
  ### LightningWrapper for training
    - Allows to easily use distributed training and GPU/TPU usage.
    - [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/starter/introduction.html)
+   - Scaling functions
+     - MinMax
+     - L2-norm
+     - Tensor to 8bit
 
 
  ### **TripletDataset**

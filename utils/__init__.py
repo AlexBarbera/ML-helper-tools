@@ -1,7 +1,7 @@
 from .Pipelines import lightning_training_wrapper
 from .Datasets import TipletDataset
 
-from typing import Literal
+from typing import Literal, Optional
 import numpy
 import torch
 
@@ -69,7 +69,7 @@ def mahalanobis_whitening_batch(data: torch.Tensor, should_normalize: bool = Tru
     :param should_normalize: Set to `True` if image is not scaled and normalized.
     :param batch_format: Dimension format of data.
     :param independent_channels: Treat each channel of each image as independent or aggregate them for normalization.
-    :return: Whitened image batch of shape (B*C, H*W).
+    :return: Whitened image batch of shape (B, C, H, W).
     """
     assert data.ndim == 4, "Invalid tensor shape, expected (B, C, W, H) but found {} dimensions.".format(data.ndim)
     x = data.float()
@@ -107,3 +107,40 @@ def mahalanobis_whitening_batch(data: torch.Tensor, should_normalize: bool = Tru
             output = output.reshape(*data.shape)
 
     return output
+
+
+def l2_norm(x: torch.Tensor) -> torch.Tensor:
+    """
+    Returns the L2-norm also known as the Euclidean Norm of the given tensor.
+    :param x: Tensor to calculate L2-Norm.
+    :return: L2-Normed Tensor
+    """
+    return x.pow(2).sum().sqrt()
+
+
+def minmax_scale(x: torch.Tensor) -> torch.Tensor:
+    r"""
+    Apply a min-max scale to the input data.
+
+    :math:`\frac{x - min(x)}{max(x)}`
+
+    :param x: Input data
+    :return: Normalized data
+    """
+    _min = x.min()
+    _max = x.max()
+
+    return (x - _min) / _max
+
+
+def to_8bit(x: torch.Tensor, out_type: Optional[torch.dtype] = None) -> torch.Tensor:
+    """
+    Transforms a given tensor to its 8bit representation.
+    :param x: Input tensor.
+    :param out_type: Optionally which type we want to output the data as.
+    :return: Normalized tensor.
+    """
+    # while we could technically do x / (255 ** (element - 1) this is more verbose
+    return (
+            (x / (255 ** x.element_size())
+             ) * 255).astype(out_type if out_type is not None else torch.uint8)
