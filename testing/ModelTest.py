@@ -3,7 +3,7 @@ import unittest
 import matplotlib.pyplot as plt
 import torch.nn
 import torchvision.models.feature_extraction
-import models
+from mlhelpertools import models
 
 
 class SiameseNetworkTest(unittest.TestCase):
@@ -202,7 +202,6 @@ class AutoencoderTest(unittest.TestCase):
         # cannot check reconstuction because reparametrization adds randomness
         self.assertTrue(torch.equal(encoded_mean, encoded_mean1))
         self.assertTrue(torch.equal(encoded_var, encoded_var1))
-
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import torch
 import torchvision.io
 import os
 
-import losses
+from mlhelpertools import losses
 
 
 class TotalVariationLossTest(unittest.TestCase):

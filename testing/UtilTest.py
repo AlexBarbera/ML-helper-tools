@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import torchvision.io
 import torch
 
-import utils
+from mlhelpertools import utils
 
 
 class MahalanobisTest(unittest.TestCase):

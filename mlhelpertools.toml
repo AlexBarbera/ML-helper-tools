@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+requires-python = ">= 3.8" # At least Python 3.8
+
+[project.urls]
+Homepage = "https://github.com/AlexBarbera/ML-helper-tools"
+Issues = "https://github.com/AlexBarbera/ML-helper-tools/issues"

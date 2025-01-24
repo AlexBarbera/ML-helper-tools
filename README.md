@@ -4,6 +4,9 @@ This repo contains helper functions and skeletons for training ML models in an a
 
 The idea is to have a single repo to refer to for implementation and editing instead of writting from scratch, this is not supposed to be a script repo.
 
+The latest commit makes it installable as a module with pip:
+
+`pip install git+ssh://git@github.com:AlexBarbera/ML-helper-tools.git`
 &nbsp;
 
 ## Losses
