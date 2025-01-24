@@ -47,8 +47,9 @@ class CycleGAN(torch.nn.Module):  # TODO implement replay buffer
                  classifierA: Optional[torch.nn.Module], classifierB: Optional[torch.nn.Module], lambda_A: float = None,
                  idtA: float = 0.1, idtB: float = 0.1, loss_C: torch.nn.Module = torch.nn.L1Loss,
                  loss_G: torch.nn.Module = torch.nn.MSELoss, optimizer_G: torch.optim = torch.optim.Adam,
-                 optimizer_C: torch.optim = torch.optim.Adam, pool: Optional[ImagePool] = None,
-                 channels_in: Optional[int] = None, channels_out: Optional[int] = None):
+                 optimizer_C: torch.optim = torch.optim.Adam, poolA: Optional[ImagePool] = None,
+                 poolB: Optional[ImagePool] = None, channels_in: Optional[int] = None,
+                 channels_out: Optional[int] = None):
         super(CycleGAN, self).__init__()
 
         if generatorA is not None:
@@ -73,12 +74,8 @@ class CycleGAN(torch.nn.Module):  # TODO implement replay buffer
         self.lambda_A = lambda_A
         self.lambda_B = 1 - lambda_A
 
-        if pool is None:
-            self.poolA = ImagePool()
-            self.poolB = ImagePool()
-        else:
-            self.poolA = pool
-            self.poolB = pool
+        self.poolA = ImagePool(50) if poolA is None else poolA
+        self.poolB = ImagePool(50) if poolB is None else poolB
 
     def backward_gen(self, original, reconstructed, pred_gen, idt, factor: float, factor_idt: float):
         loss_a = self.loss_classifier(pred_gen, torch.ones_like(pred_gen))
@@ -156,12 +153,8 @@ class CycleGAN(torch.nn.Module):  # TODO implement replay buffer
                              "(1, batch, channel, width, height) found: {}".format(x.shape))
 
         fakeA = None
-        fakeB = None
-        recA = None
         recB = None
-        idtA = None
         idtB = None
-        discA = None
         discB = None
 
         fakeB = self.netAB(a)

@@ -219,7 +219,7 @@ class CycleGANLoss(torch.nn.Module):
 
     For use with this repo\'s CycleGAN do:
     .. code-block::
-
+    
         gan = models.CycleGAN()
         loss_criterion = losses.CycleGANLoss(
                     gan.netAB, gan.netBA, gan.discA, gan.discB
@@ -227,6 +227,9 @@ class CycleGANLoss(torch.nn.Module):
 
         # train loop
         res = gan(data)
+
+        # original paper passes discriminator through an ImagePool so remember doing it
+
         loss = loss_criterion(data, *res)
         loss.backward()
     """
