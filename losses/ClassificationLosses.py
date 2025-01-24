@@ -3,6 +3,8 @@ import torch
 
 class DeepEnergyLoss(torch.nn.Module):
     """
+    Maximizes diference between True (typically classified as 1) and False (typically classified as 0) labels.
+
     https://uvadlc-notebooks.readthedocs.io/en/latest/tutorial_notebooks/tutorial8/Deep_Energy_Models.html
     """
     def __init__(self, alpha: float = 1.0, reduction: bool = True):

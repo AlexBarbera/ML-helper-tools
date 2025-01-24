@@ -85,7 +85,7 @@ class PerceptualLoss(torch.nn.Module):
             else:
                 self.transforms = custom_transforms
 
-        if features_dict is None:
+        if features_dict is None:  # default feature maps match original SR paper https://arxiv.org/pdf/1603.08155
             self.return_features = {
                 "3": "first",
                 "8": "second",
@@ -97,7 +97,7 @@ class PerceptualLoss(torch.nn.Module):
 
         if content_dict is None:
             self.return_content = {
-                "15": "first"
+                "8": "first"
             }
         else:
             self.return_content = content_dict
@@ -181,6 +181,11 @@ class PerceptualLoss(torch.nn.Module):
 
 
 class TotalVariationLoss(torch.nn.Module):
+    """
+    Typically used for denoising, this loss reduces big variance zones (noise) in (typically) images.
+
+    https://en.wikipedia.org/wiki/Total_variation_denoising
+    """
     def __init__(self, format_channels: str = "CWH", alpha: float = 1.0):
         super().__init__()
         assert "C" in format_channels and "W" in format_channels and "H" in format_channels and len(format_channels) == 3, (
