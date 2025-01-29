@@ -4,7 +4,7 @@ This repo contains helper functions and skeletons for training ML models in an a
 
 The idea is to have a single repo to refer to for implementation and editing instead of writting from scratch, this is not supposed to be a script repo.
 
-The latest commit makes it installable as a module with pip:
+Also installable as a pip module:
 
 `pip install git+ssh://git@github.com:AlexBarbera/ML-helper-tools.git`
 &nbsp;
@@ -31,6 +31,11 @@ The latest commit makes it installable as a module with pip:
 
  ### **CycleGANLoss**
    - Extracted Cyclegan loss pipeline in case we want to abstract it to somthing different.
+
+
+ ### **WordTreeLoss**
+   - Based on [YOLO9000 paper](https://arxiv.org/pdf/1612.08242) for hierarchical classification.
+   - **Also utility class to use label hierarchy outside of training.**
 
 &nbsp;
 
