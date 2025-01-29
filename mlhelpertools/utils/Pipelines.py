@@ -2,8 +2,7 @@ import os.path
 from typing import Dict
 import lightning
 import torch
-
-from models import LightningWrapper
+from mlhelpertools.models import LightningWrapper
 
 
 def lightning_training_wrapper(model: torch.nn.Module, loss: torch.nn.Module, train_dl: torch.utils.data.DataLoader,

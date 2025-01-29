@@ -2,7 +2,9 @@
 
 This repo contains helper functions and skeletons for training ML models in an attempt to avoid repeating code search.
 
-The idea is to have a single repo to refer to for implementation and editing instead of writting from scratch, this is not supposed to be a script repo.
+The idea is to have a single repo to refer to for implementation and editing instead of writting from scratch, or utillities that are not easily available.
+
+**This is not supposed to be a script repo.**
 
 Also installable as a pip module:
 
@@ -36,6 +38,12 @@ Also installable as a pip module:
  ### **WordTreeLoss**
    - Based on [YOLO9000 paper](https://arxiv.org/pdf/1612.08242) for hierarchical classification.
    - **Also utility class to use label hierarchy outside of training.**
+
+ ### **BinaryLabelSmoothing Wrapper**
+   - Smoothes a one-hot vector by taking a bit of the top label and spreading it over the rest of the classes.
+   - Based on [Improved Techniques for training GANs](https://arxiv.org/pdf/1606.03498).
+   - Technically the smoothing would be $0 \rightarrow \frac{\epsilon}{k}$ and $1 \rightarrow \frac{k-1}{k}$
+   - While not a loss itself it is a loss wrapper.
 
 &nbsp;
 

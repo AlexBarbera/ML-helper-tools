@@ -9,15 +9,33 @@ from mlhelpertools import losses
 class TotalVariationLossTest(unittest.TestCase):
     def setUp(self):
         self.loss = losses.TotalVariationLoss()
+        self.loss1 = losses.TotalVariationLoss(format_channels="WCH")
+        self.loss2 = losses.TotalVariationLoss(format_channels="WHC")
         self.delta = 0.001
         torch.manual_seed(1)
 
     def test_zero(self):
         original = torch.ones(1, 1, 10, 10)
 
-        self.assertAlmostEquals(self.loss(original), 0, delta=self.delta)
-        self.assertAlmostEquals(self.loss(original * 0), 0, delta=self.delta)
-        self.assertAlmostEquals(self.loss(original * -1), 0, delta=self.delta)
+        self.assertAlmostEqual(self.loss(original), 0, delta=self.delta)
+        self.assertAlmostEqual(self.loss(original * 0), 0, delta=self.delta)
+        self.assertAlmostEqual(self.loss(original * -1), 0, delta=self.delta)
+
+        original_permuted = original.permute((0, 2, 1, 3))  # BWCH
+
+        self.assertAlmostEqual(self.loss1(original_permuted), 0, delta=self.delta)
+        self.assertAlmostEqual(self.loss1(original_permuted * 2), 0, delta=self.delta)
+        self.assertAlmostEqual(self.loss1(original_permuted * -1), 0, delta=self.delta)
+
+        original_permuted = original.permute((0, 2, 3, 1))  # BWHC
+
+        self.assertAlmostEqual(self.loss2(original_permuted), 0, delta=self.delta)
+        self.assertAlmostEqual(self.loss2(original_permuted * 2), 0, delta=self.delta)
+        self.assertAlmostEqual(self.loss2(original_permuted * -1), 0, delta=self.delta)
+
+        self.assertTrue(
+            torch.equal(self.loss(original), self.loss2(original_permuted))
+        )
 
     def test_notzero(self):
         original = torch.tensor([[[[0.7576, 0.2793, 0.4031, 0.7347, 0.0293],
@@ -28,15 +46,45 @@ class TotalVariationLossTest(unittest.TestCase):
 
         expected = 0.1369
 
-        self.assertAlmostEquals(self.loss(original), expected, delta=self.delta)
-        self.assertAlmostEquals(self.loss(original * 2), expected * 4, delta=self.delta)
-        self.assertAlmostEquals(self.loss(original * -1), expected, delta=self.delta)
+        self.assertAlmostEqual(self.loss(original), expected, delta=self.delta)
+        self.assertAlmostEqual(self.loss(original * 2), expected * 4, delta=self.delta)
+        self.assertAlmostEqual(self.loss(original * -1), expected, delta=self.delta)
+
+        original_permuted = original.permute((0, 2, 1, 3))  # BWCH
+
+        self.assertAlmostEqual(self.loss1(original_permuted), expected, delta=self.delta)
+        self.assertAlmostEqual(self.loss1(original_permuted * 2), expected * 4, delta=self.delta)
+        self.assertAlmostEqual(self.loss1(original_permuted * -1), expected, delta=self.delta)
+
+        self.assertTrue(
+            torch.equal(self.loss(original), self.loss1(original_permuted))
+        )
+
+        original_permuted = original.permute((0, 2, 3, 1))  # BWHC
+
+        self.assertAlmostEqual(self.loss2(original_permuted), expected, delta=self.delta)
+        self.assertAlmostEqual(self.loss2(original_permuted * 2), expected * 4, delta=self.delta)
+        self.assertAlmostEqual(self.loss2(original_permuted * -1), expected, delta=self.delta)
+
+        self.assertTrue(
+            torch.equal(self.loss(original), self.loss2(original_permuted))
+        )
+
+    def testInvalidChannelFormat(self):
+        with self.assertRaises(AssertionError):
+            losses.TotalVariationLoss(format_channels="WCHB")
+        with self.assertRaises(AssertionError):
+            losses.TotalVariationLoss(format_channels="WACH")
+        with self.assertRaises(AssertionError):
+            losses.TotalVariationLoss(format_channels="1")
 
 
 class PerceptualLossTest(unittest.TestCase):
     def setUp(self):
         wd = os.path.dirname(__file__)
         self.loss = losses.PerceptualLoss(tv_factor=0)
+        self.loss1 = losses.PerceptualLoss(pixel_factor=1.0, reduction=False)
+
         self.data1 = torchvision.io.read_image(os.path.join(wd, "cifar_6.png")).float().reshape(-1, 3, 32, 32)
         self.data2 = torchvision.io.read_image(os.path.join(wd, "cifar_9.png")).float().reshape(-1, 3, 32, 32)
 
@@ -46,9 +94,18 @@ class PerceptualLossTest(unittest.TestCase):
         )
 
     def test_notEqual(self):
-        self.assertNotEquals(
+        self.assertNotEqual(
             self.loss(self.data1, self.data1, self.data2), 0
         )
+
+    def test_noReduction(self):
+        l = self.loss1(self.data1, self.data1, self.data1)
+
+        self.assertEqual(len(l), 4, "Imcorrect number of output losses")
+        self.assertEqual(l[0].item(), 0, "Style loss not 0.")
+        self.assertEqual(l[1].item(), 0, "Content loss not 0.")
+        self.assertNotEqual(l[2].item(), 0, "TV loss not correct value.")
+        self.assertEqual(l[3].item(), 0, "Pixel loss not 0.")
 
 
 class DeepEneryLossTest(unittest.TestCase):
@@ -76,6 +133,8 @@ class DeepEneryLossTest(unittest.TestCase):
 class WassersteinLossTest(unittest.TestCase):
     def setUp(self):
         self.loss = losses.WassersteinLoss(format_channels="CWH")
+        self.loss1 = losses.WassersteinLoss(format_channels="WHC")
+        self.loss2 = losses.WassersteinLoss(format_channels="WCH")
 
     def test_Wasserstein_init(self):
         with self.assertRaises(AssertionError, msg="Invalid channel format should raise error"):
@@ -92,6 +151,64 @@ class WassersteinLossTest(unittest.TestCase):
 
         self.assertTrue(torch.equal(l, torch.tensor(0)))
 
+        data_permuted = data.permute((1, 2, 0))  # WHC
+        l1 = self.loss1(data_permuted, data_permuted)
+        self.assertTrue(torch.equal(l1, torch.tensor(0)))
+        self.assertTrue(torch.equal(l, l1))
+
+        data_permuted = data.permute((1, 0, 2))  # WCH
+        l1 = self.loss1(data_permuted, data_permuted)
+        self.assertTrue(torch.equal(l1, torch.tensor(0)))
+        self.assertTrue(torch.equal(l, l1))
+
+    def test_equal_batched(self):
+        data = torch.ones(2, 1, 24, 24)
+        data = torch.randn_like(data)
+        l = self.loss(data, data)
+
+        self.assertTrue(torch.equal(l, torch.tensor(0)))
+
+        data_permuted = data.permute((0, 2, 3, 1))  # WHC
+        l1 = self.loss1(data_permuted, data_permuted)
+        self.assertTrue(torch.equal(l1, torch.tensor(0)))
+        self.assertTrue(torch.equal(l, l1))
+
+        data_permuted = data.permute((0, 2, 1, 3))  # WCH
+        l1 = self.loss2(data_permuted, data_permuted)
+        self.assertTrue(torch.equal(l1, torch.tensor(0)))
+        self.assertTrue(torch.equal(l, l1))
+
+    def test_pointlcloud_output(self):
+        B = 2
+        C = 4
+        W = 24
+        H = 13
+
+        data = torch.ones(B, C, W, H)
+        data = torch.randn_like(data)
+        self.assertEqual(self.loss.to_pointcloud(data).shape, (B, W * H, C))
+
+        data = torch.ones(B, W, C, H)
+        data = torch.randn_like(data)
+        self.assertEqual(self.loss2.to_pointcloud(data).shape, (B, W * H, C))
+
+        data = torch.ones(B, W, H, C)
+        data = torch.randn_like(data)
+        self.assertEqual(self.loss1.to_pointcloud(data).shape, (B, W * H, C))
+
+        # Unbatched
+        data = torch.ones(C, W, H)
+        data = torch.randn_like(data)
+        self.assertEqual(self.loss.to_pointcloud(data).shape, (1, W * H, C))
+
+        data = torch.ones(W, C, H)
+        data = torch.randn_like(data)
+        self.assertEqual(self.loss2.to_pointcloud(data).shape, (1, W * H, C))
+
+        data = torch.ones(W, H, C)
+        data = torch.randn_like(data)
+        self.assertEqual(self.loss1.to_pointcloud(data).shape, (1, W * H, C))
+
     def test_diff(self):
         data = torch.ones(1, 24, 24)
         data = torch.randn_like(data)
@@ -99,6 +216,18 @@ class WassersteinLossTest(unittest.TestCase):
         l = self.loss(data, data1)
 
         self.assertFalse(torch.equal(l, torch.tensor(0)))
+
+        data_permuted = data.permute((1, 2, 0))  # WHC
+        data_permuted1 = data1.permute((1, 2, 0))
+        l1 = self.loss1(data_permuted, data_permuted1)
+        self.assertFalse(torch.equal(l1, torch.tensor(0)))
+        self.assertTrue(torch.equal(l, l1))
+
+        data_permuted = data.permute((1, 0, 2))  # WCH
+        data_permuted1 = data1.permute((1, 0, 2))
+        l1 = self.loss2(data_permuted, data_permuted1)
+        self.assertFalse(torch.equal(l1, torch.tensor(0)))
+        self.assertTrue(torch.equal(l, l1))
 
 
 class WordTreeTransformTest(unittest.TestCase):
@@ -841,4 +970,48 @@ class WordTreeLossTest(unittest.TestCase):
 
         self.assertTrue(
             torch.equal(res, torch.zeros(3, 1))
+        )
+
+
+class LabelSmoothingTest(unittest.TestCase):
+    def testSmoothing(self):
+        factor = 0.1
+        smear = factor / (10 - 1)
+        base = torch.zeros(1, 10).float()
+        base[0, 3] = 1.0
+
+        expected = torch.ones(1, 10).float() * smear
+        expected[0, 3] = 1.0 - factor
+
+        loss = losses.BinaryLabelSmoothingLoss(1.0 - factor)
+
+        self.assertTrue(
+            torch.equal(loss._smooth(base), expected)
+        )
+
+        base = torch.zeros(2, 10).float()
+        base[0, 3] = 1.0
+        base[1, 5] = 1.0
+
+        expected = torch.ones(2, 10).float() * smear
+        expected[0, 3] = 1.0 - factor
+        expected[1, 5] = 1.0 - factor
+
+        self.assertTrue(torch.equal(
+            expected, loss._smooth(base)
+        ))
+
+    def testLoss(self):
+        factor = 0.1
+        smear = factor / (10 - 1)
+        base = torch.zeros(1, 10).float()
+        base[0, 3] = 1.0
+
+        expected = torch.ones(1, 10).float() * smear
+        expected[0, 3] = 1.0 - factor
+
+        loss = losses.BinaryLabelSmoothingLoss(1.0 - factor)
+
+        self.assertTrue(
+            torch.equal(loss(base, base), torch.nn.BCELoss()(base, expected))
         )

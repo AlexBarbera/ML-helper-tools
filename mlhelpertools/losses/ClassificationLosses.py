@@ -39,10 +39,10 @@ class BinaryLabelSmoothingLoss(torch.nn.Module):
         :param target_prob: Probability of target label after smoothing, rest of labels will have :math:`\frac{1-prob}{n_labels -1}`
         :param loss_kw: Keywords to pass to `torch.nn.BCELoss`
         """
+        super().__init__()
 
-        super(BinaryLabelSmoothingLoss).__init__()
         self.factor = target_prob
-        self.loss = torch.nn.BCELoss(**loss_kw)
+        self.loss_fn = torch.nn.BCELoss(**loss_kw)
 
     def _smooth(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -50,11 +50,12 @@ class BinaryLabelSmoothingLoss(torch.nn.Module):
         :param x: Label tensor to be smooth.
         :return: A copy of smoothed `x`.
         """
-        output = torch.zeros_like(x).fill_((1 - self.factor) / (x.shape[1] - 1)).scatter(1, x.argmax(1), self.factor)
+        output = (torch.zeros_like(x).fill_((1 - self.factor) / (x.shape[1] - 1))
+                  .scatter(1, x.argmax(1, keepdim=True), self.factor))
         return output
 
     def forward(self, x, y):
-        return self.loss(x, self._smooth(y))
+        return self.loss_fn(x, self._smooth(y))
 
 
 class WordTreeTransformation:
@@ -174,9 +175,10 @@ class WordTreeLoss(torch.nn.Module):
                 self.levels[i][j] = self.wt._string_to_index(self.levels[i][j])
 
     def _single_loss(self, x, y):
-        output = torch.zeros(1)
-        for level in self.levels:
-            output += self.loss(x[level], y[level])
+        output = torch.zeros(x.shape[0], 1)
+        for i in range(x.shape[0]):
+            for level in self.levels:
+                output[i] += self.loss(x[i, level], y[i, level])
         return output
 
     def forward_optimized(self, x, y):
