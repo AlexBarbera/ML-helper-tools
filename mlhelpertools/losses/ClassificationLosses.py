@@ -30,29 +30,42 @@ class BinaryLabelSmoothingLoss(torch.nn.Module):
     Calls a BCELoss after performing label smoothing over a one-hot `expected` vector.
     """
 
-    def __init__(self, target_prob: float, **loss_kw):
+    def __init__(self, target_prob: float, one_sided: bool = False, **loss_kw):
         r"""
         Constructs a Label Smoothing BCE loss.
         :param target_prob: Probability of target label after smoothing, rest of labels will have :math:`\frac{1-prob}{n_labels -1}`
+        :param one_sided: Perfor one-sided smoothing ie. Only smoothes true labels leaving false labels as 0.
         :param loss_kw: Keywords to pass to `torch.nn.BCELoss`
         """
         super().__init__()
 
         self.factor = target_prob
         self.loss_fn = torch.nn.BCELoss(**loss_kw)
+        self.is_one_sided = one_sided
 
     def _smooth(self, x: torch.Tensor) -> torch.Tensor:
         """
         Creates a copy of tensor `x` and performs smoothing on it.
-        :param x: Label tensor to be smooth.
+        :param x: Label tensor to be smoothed.
         :return: A copy of smoothed `x`.
         """
+
         output = (torch.zeros_like(x).fill_((1 - self.factor) / (x.shape[1] - 1))
                   .scatter(1, x.argmax(1, keepdim=True), self.factor))
         return output
 
+    def _smooth_one_sided(self, x: torch.tensor) -> torch.Tensor:
+        """
+        Creates a copy of tensor `x` and performs one-side smoothing on it, meaning only reduces the treu labels.
+        :param x: Label tensor to be smoothed.
+        :return: A copy of smoothed `x`.
+        """
+
+        output = torch.zeros_like(x).scatter(1, x.argmax(1, keepdim=True), self.factor)
+        return output
+
     def forward(self, x, y):
-        return self.loss_fn(x, self._smooth(y))
+        return self.loss_fn(x, self._smooth_one_sided(y) if self.is_one_sided else self._smooth(y))
 
 
 class WordTreeTransformation:

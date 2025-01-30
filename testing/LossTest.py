@@ -974,6 +974,11 @@ class WordTreeLossTest(unittest.TestCase):
 
 
 class LabelSmoothingTest(unittest.TestCase):
+    def setUp(self):
+        self.factor = 0.9
+        self.loss = losses.BinaryLabelSmoothingLoss(self.factor)
+        self.loss_one_sided = losses.BinaryLabelSmoothingLoss(self.factor, one_sided=True)
+
     def testSmoothing(self):
         factor = 0.1
         smear = factor / (10 - 1)
@@ -1001,17 +1006,51 @@ class LabelSmoothingTest(unittest.TestCase):
             expected, loss._smooth(base)
         ))
 
+    def testSmoothingOneSided(self):
+        base = torch.zeros(1, 10).float()
+        base[0, 3] = 1.0
+
+        expected = torch.zeros(1, 10).float()
+        expected[0, 3] = self.factor
+
+        self.assertTrue(
+            torch.equal(self.loss_one_sided._smooth_one_sided(base), expected)
+        )
+
+        base = torch.zeros(2, 10).float()
+        base[0, 3] = 1.0
+        base[1, 5] = 1.0
+
+        expected = torch.zeros(2, 10).float()
+        expected[0, 3] = self.factor
+        expected[1, 5] = self.factor
+
+        self.assertTrue(torch.equal(
+            expected, self.loss._smooth_one_sided(base)
+        ))
+
     def testLoss(self):
-        factor = 0.1
-        smear = factor / (10 - 1)
+        smear = (1-self.factor) / (10 - 1)
         base = torch.zeros(1, 10).float()
         base[0, 3] = 1.0
 
         expected = torch.ones(1, 10).float() * smear
-        expected[0, 3] = 1.0 - factor
-
-        loss = losses.BinaryLabelSmoothingLoss(1.0 - factor)
+        expected[0, 3] = self.factor
 
         self.assertTrue(
-            torch.equal(loss(base, base), torch.nn.BCELoss()(base, expected))
+            torch.equal(self.loss(base, base), torch.nn.BCELoss()(base, expected))
+        )
+
+    def testLossOneSided(self):
+        base = torch.zeros(1, 10).float()
+        base[0, 3] = 1.0
+
+        expected = torch.zeros(1, 10).float()
+        expected[0, 3] = self.factor
+        expected_loss = torch.nn.BCELoss()(base, expected)
+        res = self.loss_one_sided(base, base)
+
+        self.assertTrue(
+            torch.equal(res, expected_loss),
+            msg="Loss not equal.\n{}\n{}".format(expected_loss, res)
         )
