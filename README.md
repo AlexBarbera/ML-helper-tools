@@ -70,13 +70,14 @@ Also installable as a pip module:
 &nbsp;
 
 ## Utils
- ### LightningWrapper for training
+ ### **LightningWrapper for training**
    - Allows to easily use distributed training and GPU/TPU usage.
    - [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/starter/introduction.html)
-   - Scaling functions
-     - MinMax
-     - L2-norm
-     - Tensor to 8bit
+
+### **Scaling functions**
+   - MinMax
+   - L2-norm
+   - Tensor to 8bit
 
 
  ### **TripletDataset**

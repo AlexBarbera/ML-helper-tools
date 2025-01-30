@@ -133,14 +133,18 @@ def minmax_scale(x: torch.Tensor) -> torch.Tensor:
     return (x - _min) / _max
 
 
-def to_8bit(x: torch.Tensor, out_type: Optional[torch.dtype] = None) -> torch.Tensor:
+def to_nbit(x: torch.Tensor, out_type: torch.dtype) -> torch.Tensor:
     """
-    Transforms a given tensor to its 8bit representation.
+    Transforms a given tensor to its N-bit representation as defined by the parameter.
+    The user is responsible that parsing to signed types can still hold original values.
+
     :param x: Input tensor.
-    :param out_type: Optionally which type we want to output the data as.
+    :param out_type: Type we want to output the data as.
     :return: Normalized tensor.
     """
-    # while we could technically do x / (255 ** (element - 1) this is more verbose
+
+    frac = (2**(8*out_type.itemsize) - 1) / (2**(8*x.element_size()) - 1)
+
     return (
-            (x / (255 ** x.element_size())
-             ) * 255).astype(out_type if out_type is not None else torch.uint8)
+            x * frac
+    ).type(out_type)

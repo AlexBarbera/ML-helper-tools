@@ -17,6 +17,7 @@ class ImagePool:
         assert capacity >= 0, "Invalid capacity {}".format(capacity)
         self.capacity = capacity
         self.p = p
+        self.buffer = list()
 
     def __call__(self, x):
         if self.capacity == 0:
@@ -42,7 +43,7 @@ class ImagePool:
         return torch.cat(output, 0)
 
 
-class CycleGAN(torch.nn.Module):  # TODO implement replay buffer
+class CycleGAN(torch.nn.Module):
     def __init__(self, generatorA: Optional[torch.nn.Module], generatorB: Optional[torch.nn.Module],
                  classifierA: Optional[torch.nn.Module], classifierB: Optional[torch.nn.Module], lambda_A: float = None,
                  idtA: float = 0.1, idtB: float = 0.1, loss_C: torch.nn.Module = torch.nn.L1Loss,
@@ -59,8 +60,8 @@ class CycleGAN(torch.nn.Module):  # TODO implement replay buffer
 
         self.netAB = ResnetGenerator(channels_in, channels_out) if generatorA is None else generatorA
         self.netBA = ResnetGenerator(channels_out, channels_in) if generatorB is None else generatorB
-        self.discA = ConvMLP(channels_in, 1) if classifierA is None else classifierA
-        self.discB = ConvMLP(channels_out, 1) if classifierB is None else classifierB
+        self.discA = ConvMLP(channels_in, [10, 5], (2, 2), 1, 50, True) if classifierA is None else classifierA
+        self.discB = ConvMLP(channels_out, [10, 5], (2, 2), 1, 50, True) if classifierB is None else classifierB
 
         self.idtAA = idtA
         self.idtBB = idtB
@@ -330,8 +331,8 @@ class ConvMLP(torch.nn.Module):
     Convolutional Multi-Layered Perceptron for classification tasks.
     """
 
-    def __init__(self, input_c: int, channels: List[int], kernels: List[int], output_channels: int, n_out: int,
-                 use_bias: bool, batch_norm: Optional[torch.nn.Module] = torch.nn.BatchNorm2d,
+    def __init__(self, input_c: int, channels: List[int], kernels: List[int] | tuple[int, int], output_channels: int,
+                 n_out: int, use_bias: bool, batch_norm: Optional[torch.nn.Module] = torch.nn.BatchNorm2d,
                  activation: torch.nn.Module = torch.nn.ReLU):
         super(ConvMLP, self).__init__()
 
@@ -341,13 +342,16 @@ class ConvMLP(torch.nn.Module):
         self.conv.append(activation())
 
         for i in range(len(channels) - 1):
-            self.conv.append(torch.nn.Conv2d(channels[i], channels[i + 1], bias=use_bias, kernel_size=kernels[i]))
+            self.conv.append(torch.nn.Conv2d(channels[i], channels[i + 1], bias=use_bias,
+                                             kernel_size=kernels[i] if isinstance(kernels, List) else kernels)
+                             )
             self.conv.append(activation())
+
             if batch_norm is not None:
                 self.conv.append(batch_norm())
 
         self.conv = torch.nn.Sequential(*self.conv)
-        self.linear = MLP(output_channels, n_out)
+        self.linear = MLP(output_channels, [512, 256], n_out)
 
     def forward(self, x):
         x = self.conv(x).view(x.shape[0], -1)

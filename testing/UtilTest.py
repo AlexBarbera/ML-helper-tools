@@ -110,6 +110,41 @@ class MahalanobisTest(unittest.TestCase):
         self.assertTrue(torch.equal(x, self.target_batcha_no_independent_bwhc),
                          msg="Target for ZCA whitening for independent channels not correct.")
 
+    def test_tonbits(self):
+        x = (torch.ones(10) * (((2**16)-1)/2)).type(torch.int16)
+        expected = (torch.ones(10) * 255//2).type(torch.uint8)
+        res = utils.to_nbit(x, torch.uint8)
+        self.assertTrue(
+            torch.allclose(res, expected),
+            msg="Wrong values:\n{}\n{}".format(expected, res)
+        )
+
+        x = (torch.ones(10) * ((2 ** 16) - 1)).type(torch.uint16)
+        expected = (torch.ones(10) * 255).type(torch.uint8)
+        res = utils.to_nbit(x, torch.uint8)
+        self.assertTrue(
+            torch.allclose(res, expected),
+            msg="Wrong values:\n{}\n{}".format(expected, res)
+        )
+
+        x = (torch.zeros(2, 10)).type(torch.int16)
+        expected = (torch.zeros(2, 10)).type(torch.uint8)
+        res = utils.to_nbit(x, torch.uint8)
+        self.assertTrue(
+            torch.allclose(res, expected),
+            msg="Wrong values:\n{}\n{}".format(expected, res)
+        )
+
+        x = (torch.ones(10) * 255).type(torch.uint8)
+        expected = (torch.ones(10) * (2**16 - 1)).type(torch.uint16)
+        res = utils.to_nbit(x, torch.uint16)
+        self.assertTrue(
+            torch.allclose(res, expected),
+            msg="Wrong values:\n{}\n{}".format(expected, res)
+        )
+
+
+
 
 def zca_imshow(ax, image):
     m, M = image.min(), image.max()

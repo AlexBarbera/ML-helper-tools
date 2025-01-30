@@ -1,9 +1,6 @@
-from typing import Dict, List, Union, Callable, Tuple, Any, Optional
+from typing import Dict, List
 
-import numpy
 import torch
-from torch.nn.modules.module import T
-from torch.utils.hooks import RemovableHandle
 
 
 class DeepEnergyLoss(torch.nn.Module):
@@ -109,7 +106,7 @@ class WordTreeTransformation:
         while key in self.rtree:
             output.append(self._string_to_index(key))
 
-            if key == self.rtree[key]:
+            if self.__is_root_node(key):  # if key == self.rtree[key]:
                 break
 
             key = self.rtree[key]
@@ -131,6 +128,33 @@ class WordTreeTransformation:
                 raise IndexError("Invalid index {}".format(x))
 
         return self.words[x.int() if isinstance(x, torch.Tensor) else x]
+
+    def __is_root_node(self, index: str | int) -> bool:
+        if isinstance(index, str):
+            return index == self.rtree[index]
+        else:
+            key = self._index_to_string(index)
+            return key == self.rtree[key]
+
+    def get_total_prob(self, prediction: torch.Tensor, index: str | int) -> torch.Tensor:
+        r"""
+        Calculate for a given prediction vector the overall probability of class _index_.
+
+        This is calculated by :math:`P(x)=P(x|parent)*P(parent|parent')...`
+
+        :param prediction: Output vector of predictions with current WordTree.
+        :param index: str or int index of class we want to calculate.
+        :return: A tensor representing the total probability of prediction P(index).
+        """
+
+        output = prediction[self._string_to_index(index) if isinstance(index, str) else index]
+        key = index if isinstance(index, str) else self._index_to_string(index)
+
+        while not self.__is_root_node(key):
+            output *= prediction[self._string_to_index(self.rtree[key])]
+            key = self.rtree[key]
+
+        return output
 
     def logit_to_flattened_tree(self, x: int | str | torch.Tensor | List[str | int]) -> torch.Tensor:
         """
