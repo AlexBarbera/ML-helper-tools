@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Iterable
 
 import torch
 
@@ -37,6 +37,7 @@ class BinaryLabelSmoothingLoss(torch.nn.Module):
         :param one_sided: Perfor one-sided smoothing ie. Only smoothes true labels leaving false labels as 0.
         :param loss_kw: Keywords to pass to `torch.nn.BCELoss`
         """
+
         super().__init__()
 
         self.factor = target_prob
@@ -169,6 +170,12 @@ class WordTreeTransformation:
 
         return output
 
+    def yield_children_from_prediction(self, y: int | str) -> Iterable[List[int]]:
+        temp = list(reversed(self._get_all_parents(self._string_to_index(y) if isinstance(y, str) else y)))
+
+        for t in temp:
+            yield [self._string_to_index(x) for x in self.tree[self._index_to_string(t)]]
+
     def logit_to_flattened_tree(self, x: int | str | torch.Tensor | List[str | int]) -> torch.Tensor:
         """
         Create a binary vector for the given input and all of its parents based on the internal dataset.
@@ -222,13 +229,16 @@ class WordTreeLoss(torch.nn.Module):
         target = self.wt.logit_to_flattened_tree(y)
         return torch.vmap(func=self._single_loss)(x, target)
 
+    def get_levels_of_label(self, y):
+
+
     def forward(self, x, y):
         target = self.wt.logit_to_flattened_tree(y)
 
         output = torch.zeros(x.shape[0], 1)
 
         for i in range(x.shape[0]):
-            for level in self.levels:
+            for level in self.levels:  # change to levels of y
                 output[i] += self.loss(x[i, level], target[i, level])
 
         return output
