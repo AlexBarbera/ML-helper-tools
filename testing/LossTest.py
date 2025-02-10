@@ -630,6 +630,36 @@ class WordTreeTransformTest(unittest.TestCase):
         with self.assertRaises(AssertionError):
             losses.WordTreeTransformation(words=words, relations=relations)
 
+    def testYieldChildrenFromPrediction(self):
+        pred = list(self.wt.yield_children_from_prediction("dog"))
+        expected = [[0, 1], [2, 3, 4]]
+
+        self.assertEqual(pred, expected, msg="Invalid levels.")
+
+        pred = list(self.wt.yield_children_from_prediction("cat"))
+        expected = [[0, 1], [2, 3, 4]]
+
+        self.assertEqual(pred, expected, msg="Invalid levels.")
+
+        pred = list(self.wt.yield_children_from_prediction("wild"))
+        expected = [[0, 1]]
+
+        self.assertEqual(pred, expected, msg="Invalid levels.")
+
+        pred = list(self.wt.yield_children_from_prediction("crocodile"))
+        expected = [[0, 1], [5, 6], [16, 17]]
+
+        self.assertEqual(pred, expected, msg="Invalid levels.")
+
+        pred = list(self.wt.yield_children_from_prediction("aligator"))
+        expected = [[0, 1], [5, 6], [16, 17]]
+
+        self.assertEqual(pred, expected, msg="Invalid levels.")
+
+        with self.assertRaises(IndexError):
+            x = list(self.wt.yield_children_from_prediction("abc"))
+
+
 
 class WordTreeLossTest(unittest.TestCase):
     def setUp(self):

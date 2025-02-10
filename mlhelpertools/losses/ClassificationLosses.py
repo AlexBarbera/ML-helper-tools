@@ -99,6 +99,7 @@ class WordTreeTransformation:
         self.words = words
         self.rwords = {w: i for i, w in enumerate(words)}
         self.rtree = self._gen_reversed_tree()
+        self.root_indexes = list(set([self._string_to_index(x) for x, y in self.rtree.items() if x == y]))
 
     def _gen_reversed_tree(self):
         output = dict()
@@ -171,10 +172,13 @@ class WordTreeTransformation:
         return output
 
     def yield_children_from_prediction(self, y: int | str) -> Iterable[List[int]]:
-        temp = list(reversed(self._get_all_parents(self._string_to_index(y) if isinstance(y, str) else y)))
+        temp = list(reversed(self._get_all_parents(y if isinstance(y, str) else self._index_to_string(y))))
 
         for t in temp:
-            yield [self._string_to_index(x) for x in self.tree[self._index_to_string(t)]]
+            yield [
+                self._string_to_index(x)
+                for x in self.tree[self.rtree[self._index_to_string(t)]]
+            ] if not self.__is_root_node(self._index_to_string(t)) else self.root_indexes
 
     def logit_to_flattened_tree(self, x: int | str | torch.Tensor | List[str | int]) -> torch.Tensor:
         """
@@ -221,7 +225,7 @@ class WordTreeLoss(torch.nn.Module):
     def _single_loss(self, x, y):
         output = torch.zeros(x.shape[0], 1)
         for i in range(x.shape[0]):
-            for level in self.levels:
+            for level in self.wt.yield_children_from_prediction(y):
                 output[i] += self.loss(x[i, level], y[i, level])
         return output
 
@@ -229,16 +233,22 @@ class WordTreeLoss(torch.nn.Module):
         target = self.wt.logit_to_flattened_tree(y)
         return torch.vmap(func=self._single_loss)(x, target)
 
-    def get_levels_of_label(self, y):
-
-
     def forward(self, x, y):
         target = self.wt.logit_to_flattened_tree(y)
 
         output = torch.zeros(x.shape[0], 1)
 
-        for i in range(x.shape[0]):
-            for level in self.levels:  # change to levels of y
-                output[i] += self.loss(x[i, level], target[i, level])
+        if isinstance(y, list):
+            for i in range(x.shape[0]):
+                for level in self.wt.yield_children_from_prediction(y[i]):  # self.levels:  # change to levels of y
+                    output[i] += self.loss(x[i, level], target[i, level])
+        elif isinstance(y, torch.Tensor) and y.shape[0] != 1 and y.ndim != 1:
+            for i in range(x.shape[0]):
+                for level in self.wt.yield_children_from_prediction(y[i].item()):  # self.levels:  # change to levels of y
+                    output[i] += self.loss(x[i, level], target[i, level])
+        else:
+            for i in range(x.shape[0]):
+                for level in self.wt.yield_children_from_prediction(y):  # self.levels:  # change to levels of y
+                    output[i] += self.loss(x[i, level], target[i, level])
 
         return output
