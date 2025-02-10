@@ -12,6 +12,8 @@ Also installable as a pip module:
 &nbsp;
 
 ## Losses
+Implementation of specific losses used in _cool_ papers that have no direct implementation.
+
  ### **WassersteinLoss**
    - Earth-mover distance is a better metric for small permutations in image data compared to `MSELoss`.
    - [Original repo](https://github.com/jeanfeydy/geomloss/)
@@ -48,6 +50,8 @@ Also installable as a pip module:
 &nbsp;
 
 ## Models
+Standard models that generally are good to have in hand.
+
  ### **CycleGAN**
    - Unaligned datasets for domain tranformation.
    - [Original repo](https://github.com/junyanz/pytorch-CycleGAN-and-pix2pix/)
@@ -70,6 +74,8 @@ Also installable as a pip module:
 &nbsp;
 
 ## Utils
+A bunch of standalone functions that are commonly used.
+
  ### **LightningWrapper for training**
    - Allows to easily use distributed training and GPU/TPU usage.
    - [Pytorch Lightning](https://lightning.ai/docs/pytorch/stable/starter/introduction.html)
@@ -78,6 +84,7 @@ Also installable as a pip module:
    - MinMax
    - L2-norm
    - Tensor to 8bit
+   - Z-score
 
 
  ### **TripletDataset**
@@ -95,3 +102,19 @@ Also installable as a pip module:
  ### **ZCA Whitening**
    - Normalizes images so that covariance $`\sum`$ is the Identity matrix leading to decorrelated features.
    - According to the [paper](https://arxiv.org/pdf/1804.08450v1), it should be applied batch-wise.
+
+# Adversarial Training
+ ### FGSM
+   - Fast Gradient Sign Method [paper](https://arxiv.org/abs/1412.6572).
+   - [Pytorch tutorial](https://pytorch.org/tutorials/beginner/fgsm_tutorial.html)
+   - Uses the backward sign to generate noise to disrupt prediction.
+   - Generally 0.15 is a good delta.
+
+ ### I-FGSM
+   - Iterative FGSM [paper](https://arxiv.org/pdf/1607.02533#subsection.2.3).
+   - Iterates over deltas and predictions to greedely find min solution.
+
+ ### ILLCM
+   - Iterative Least-Likely Class Method [paper](https://arxiv.org/pdf/1607.02533#subsection.2.3)
+   - Iterates the same way as I-FGSM but minimizing the least likely class.
+   
