@@ -1,7 +1,7 @@
 from .Pipelines import lightning_training_wrapper
 from .Datasets import TipletDataset
 
-from typing import Literal, Optional
+from typing import Literal, Optional, Tuple
 import numpy
 import torch
 
@@ -18,6 +18,7 @@ def _mahalanobis_whitening(data: torch.Tensor | numpy.ndarray, should_normalize:
     :param should_normalize: Set to `True` if image is not scaled and normalized.
     :return: Whitened image.
     """
+
     x = data
 
     if should_normalize:
@@ -71,6 +72,7 @@ def mahalanobis_whitening_batch(data: torch.Tensor, should_normalize: bool = Tru
     :param independent_channels: Treat each channel of each image as independent or aggregate them for normalization.
     :return: Whitened image batch of shape (B, C, H, W).
     """
+
     assert data.ndim == 4, "Invalid tensor shape, expected (B, C, W, H) but found {} dimensions.".format(data.ndim)
     x = data.float()
 
@@ -112,9 +114,12 @@ def mahalanobis_whitening_batch(data: torch.Tensor, should_normalize: bool = Tru
 def l2_norm(x: torch.Tensor) -> torch.Tensor:
     """
     Returns the L2-norm also known as the Euclidean Norm of the given tensor.
+
+    Supposed to be used with individual tensors not with batched tensors.
     :param x: Tensor to calculate L2-Norm.
     :return: L2-Normed Tensor
     """
+
     return x.pow(2).sum().sqrt()
 
 
@@ -127,6 +132,7 @@ def minmax_scale(x: torch.Tensor) -> torch.Tensor:
     :param x: Input data
     :return: Normalized data
     """
+
     _min = x.min()
     _max = x.max()
 
@@ -137,6 +143,7 @@ def to_nbit(x: torch.Tensor, out_type: torch.dtype) -> torch.Tensor:
     """
     Transforms a given tensor to its N-bit representation as defined by the parameter.
     The user is responsible that parsing to signed types can still hold original values.
+    Supposed to be used with individual tensors not with batched tensors.
 
     :param x: Input tensor.
     :param out_type: Type we want to output the data as.
@@ -145,6 +152,19 @@ def to_nbit(x: torch.Tensor, out_type: torch.dtype) -> torch.Tensor:
 
     frac = (2**(8*out_type.itemsize) - 1) / (2**(8*x.element_size()) - 1)
 
-    return (
-            x * frac
-    ).type(out_type)
+    return (x * frac).type(out_type)
+
+
+def zscore(x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+    r"""
+    Calculates mean and standard deviation and normalizes tensor `x` with the z-score method:
+    :math:`z=\frac{x - \mu}{\sigma}`.
+    :param x: Tensor to normalize.
+    :return: The normalized tensor, mean and std used.
+    """
+
+    mean = x.float().mean()
+    std = x.float().std()
+    output = (x - mean) / std
+
+    return output, mean, std
