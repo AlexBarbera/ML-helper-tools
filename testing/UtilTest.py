@@ -143,7 +143,64 @@ class MahalanobisTest(unittest.TestCase):
             msg="Wrong values:\n{}\n{}".format(expected, res)
         )
 
+    def test_l2norm(self):
+        x = torch.tensor(range(12)).reshape((1, 3, 4))
 
+        expected = torch.tensor(22.4944)
+        res = utils.l2_norm(x)
+        self.assertTrue(
+            torch.isclose(expected, res),
+            msg="Values not equal.\n{}\n{}".format(expected, res)
+        )
+
+        x = torch.tensor(range(12)).reshape((1, 12))
+        res = utils.l2_norm(x)
+        self.assertTrue(
+            torch.isclose(expected, res),
+            msg="Values not equal.\n{}\n{}".format(expected, res)
+        )
+
+        x = torch.zeros(1, 3, 4)
+
+        expected = torch.tensor(0).float()
+        res = utils.l2_norm(x)
+        self.assertTrue(
+            torch.isclose(expected, res),
+            msg="Values not equal.\n{}\n{}".format(expected, res)
+        )
+
+    def test_minmaxscale(self):
+        x = torch.tensor(range(12)).reshape(1, 3, 4).float()
+        expected = (x - 0) / 11
+
+        res = utils.minmax_scale(x)
+
+        self.assertTrue(
+            torch.equal(expected, res),
+            msg="Values dont match.\n{}\n{}".format(expected, res)
+        )
+
+    def test_zscore(self):
+        data = torch.tensor(range(10))
+        target = (torch.tensor(range(10)) - 4.5) / 3.027
+        output, mean, std = utils.zscore(data)
+
+        self.assertEqual(mean.item(), 4.5, msg="Incorrect mean.")
+        self.assertAlmostEqual(std.item(), 3.027, places=2, msg="Incorrect var.")
+        self.assertTrue(
+            torch.allclose(output, target, rtol=1e-3, atol=1e-3), msg="Incorrect normalized zscore tensor."
+        )
+
+        data = data.reshape((2, 5))
+        target = target.reshape((2, 5))
+
+        output2, mean2, std2 = utils.zscore(data)
+
+        self.assertEqual(mean, mean2, msg="Means not equal when shape is different.")
+        self.assertEqual(std, std2, msg="Var not equal when shape is different.")
+        self.assertTrue(
+            torch.allclose(output2, target, rtol=1e-3, atol=1e-3), msg="Incorrect normalized zscore tensor (2-D)."
+        )
 
 
 def zca_imshow(ax, image):
