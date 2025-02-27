@@ -40,9 +40,12 @@ class AdversarialAttack(abc.ABC):
 class FGSMAttack(AdversarialAttack):
     r"""
     Interface for a FGSM attack (Fast Gradient Sign Method).
-    Performs an attack such that :math:`x' =x+\epsilon \times sign(\nabla_x(\theta, x, y)); \text{ } min(\epsilon)`.
+    Performs an attack such that:
+     .. math::
+        x' = \arg\!\min_{\epsilon} \text{ } x+\epsilon \times sign(\nabla_x(\theta, x, y))
 
     Pytorch tutorial: https://pytorch.org/tutorials/beginner/fgsm_tutorial.html
+
     Original Paper: https://arxiv.org/abs/1412.6572
     """
 
@@ -93,7 +96,7 @@ class IFGSM(AdversarialAttack):
     r"""
     Performs IFGSM (Iterative-FGSM) (Fast Gradient Sign Method). Also known as Basic Iterative Method (BIL).
 
-    :math:`X_0^adv = X, X^adv_{N+1} = Clip_{X, \epsilon}\{X^adv_N + \alpha \times sign(\nabla_X J(X^adv_N, y_{true})\}`
+    :math:`X_0^adv = X\\X^adv_{N+1} = Clip_{X, \epsilon}\{X^adv_N + \alpha \times sign(\nabla_X J(X^adv_N, y_{true})\}`
     """
 
     def __init__(self, alpha: float = 0.01, max_iters: int = 1000, min_value: int | float = 0,
@@ -164,8 +167,9 @@ class ILLCM(AdversarialAttack):
     r"""
     Iterative Least-Likely Class Method.
     Iteratively increases likelyhood of the least probable class instead of decreasing max likelyhood.
-
-    :math:`X_0^adv = X, X^adv_{N+1} = Clip_{X, \epsilon}\{X^adv_N - \alpha \times sign(\nabla_X J(X^adv_N, y_{LL})\}`
+    .. math::
+        X^{adv}_{0} = X\\
+        X^adv_{N+1} = Clip_{X, \epsilon}\{X^adv_N - \alpha \times sign(\nabla_X J(X^adv_N, y_{LL})\}
     """
 
     def __init__(self, alpha: float, max_iters: int, min_value: int | float = 0, max_value: int | float = 255):
@@ -183,8 +187,9 @@ class ILLCM(AdversarialAttack):
         x_adv = x.clone()
         pred = model(x_adv)
         output = list()
+        amaxy = torch.argmax(y)
 
-        while iters < self.max_iters or torch.argmax(pred) != torch.argmax(y):
+        while iters < self.max_iters or torch.argmax(pred) != amaxy:
             pred = model(x_adv)
             l = loss(pred, yll).backward()
             output.append(x_adv.detach())
